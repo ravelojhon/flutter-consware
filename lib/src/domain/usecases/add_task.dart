@@ -13,9 +13,11 @@ class AddTask {
 
   /// Ejecutar el caso de uso para agregar una nueva tarea
   /// [title] - Título de la tarea a crear
+  /// [description] - Descripción de la tarea (opcional)
   /// [isCompleted] - Estado inicial de la tarea (opcional, por defecto false)
   Future<dartz.Either<Failure, Task>> call({
     required String title,
+    String? description,
     bool isCompleted = false,
   }) async {
     // Validaciones de negocio
@@ -38,7 +40,11 @@ class AddTask {
     }
 
     // Crear la entidad Task
-    final task = Task.create(title: title.trim(), isCompleted: isCompleted);
+    final task = Task.create(
+      title: title.trim(),
+      description: description?.trim(),
+      isCompleted: isCompleted,
+    );
 
     // Delegar al repositorio
     return await _repository.createTask(task);

@@ -9,6 +9,9 @@ class Tasks extends Table {
   /// Título de la tarea
   TextColumn get title => text().withLength(min: 1, max: 255)();
 
+  /// Descripción de la tarea (opcional)
+  TextColumn get description => text().nullable()();
+
   /// Estado de completado de la tarea
   BoolColumn get isCompleted => boolean().withDefault(const Constant(false))();
 

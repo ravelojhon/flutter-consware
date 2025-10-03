@@ -8,6 +8,9 @@ class Task {
   /// Título de la tarea
   final String title;
 
+  /// Descripción de la tarea
+  final String? description;
+
   /// Estado de completado de la tarea
   final bool isCompleted;
 
@@ -21,6 +24,7 @@ class Task {
   const Task({
     required this.id,
     required this.title,
+    this.description,
     required this.isCompleted,
     required this.createdAt,
     required this.updatedAt,
@@ -28,11 +32,16 @@ class Task {
 
   /// Constructor para crear una nueva tarea (sin ID)
   /// Útil cuando se crea una tarea por primera vez
-  factory Task.create({required String title, bool isCompleted = false}) {
+  factory Task.create({
+    required String title,
+    String? description,
+    bool isCompleted = false,
+  }) {
     final now = DateTime.now();
     return Task(
       id: 0, // Se asignará cuando se guarde en la base de datos
       title: title,
+      description: description,
       isCompleted: isCompleted,
       createdAt: now,
       updatedAt: now,
@@ -43,6 +52,7 @@ class Task {
   Task copyWith({
     int? id,
     String? title,
+    String? description,
     bool? isCompleted,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -50,6 +60,7 @@ class Task {
     return Task(
       id: id ?? this.id,
       title: title ?? this.title,
+      description: description ?? this.description,
       isCompleted: isCompleted ?? this.isCompleted,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -100,7 +111,7 @@ class Task {
   /// Obtener una representación en texto de la tarea
   @override
   String toString() {
-    return 'Task(id: $id, title: $title, isCompleted: $isCompleted, '
+    return 'Task(id: $id, title: $title, description: $description, isCompleted: $isCompleted, '
         'createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
@@ -112,6 +123,7 @@ class Task {
     return other is Task &&
         other.id == id &&
         other.title == title &&
+        other.description == description &&
         other.isCompleted == isCompleted &&
         other.createdAt == createdAt &&
         other.updatedAt == updatedAt;
@@ -120,7 +132,14 @@ class Task {
   /// Obtener el hash code de la tarea
   @override
   int get hashCode {
-    return Object.hash(id, title, isCompleted, createdAt, updatedAt);
+    return Object.hash(
+      id,
+      title,
+      description,
+      isCompleted,
+      createdAt,
+      updatedAt,
+    );
   }
 
   /// Convertir la entidad a un mapa para serialización
@@ -128,6 +147,7 @@ class Task {
     return {
       'id': id,
       'title': title,
+      'description': description,
       'isCompleted': isCompleted,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
@@ -139,6 +159,7 @@ class Task {
     return Task(
       id: map['id'] as int,
       title: map['title'] as String,
+      description: map['description'] as String?,
       isCompleted: map['isCompleted'] as bool,
       createdAt: DateTime.parse(map['createdAt'] as String),
       updatedAt: DateTime.parse(map['updatedAt'] as String),

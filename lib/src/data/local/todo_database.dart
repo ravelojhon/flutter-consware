@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
 
 import '../../domain/entities/task.dart';
 import 'todo_tables.dart';
@@ -140,7 +141,7 @@ class TodoDatabase extends _$TodoDatabase {
 
   /// Versión de la base de datos (incrementar cuando se modifiquen las tablas)
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   /// Configuración de migraciones (para futuras versiones)
   @override
@@ -149,9 +150,10 @@ class TodoDatabase extends _$TodoDatabase {
       await m.createAll();
     },
     onUpgrade: (Migrator m, int from, int to) async {
-      // Aquí se pueden agregar migraciones cuando se actualice la versión
+      // Para esta versión, simplemente recrear las tablas
       if (from < 2) {
-        // Ejemplo de migración para futuras versiones
+        await m.drop(tasks);
+        await m.createTable(tasks);
       }
     },
   );
@@ -160,6 +162,11 @@ class TodoDatabase extends _$TodoDatabase {
 /// Abrir conexión a la base de datos
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
+    // Asegurar que las bibliotecas SQLite estén disponibles
+    if (Platform.isAndroid) {
+      await applyWorkaroundToOpenSqlite3OnOldAndroidVersions();
+    }
+
     // Obtener el directorio de documentos de la aplicación
     final dbFolder = await getApplicationDocumentsDirectory();
     final file = File(p.join(dbFolder.path, 'todo_database.db'));

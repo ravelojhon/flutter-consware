@@ -38,6 +38,17 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TodoTask> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _isCompletedMeta = const VerificationMeta(
     'isCompleted',
   );
@@ -81,6 +92,7 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TodoTask> {
   List<GeneratedColumn> get $columns => [
     id,
     title,
+    description,
     isCompleted,
     createdAt,
     updatedAt,
@@ -107,6 +119,15 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TodoTask> {
       );
     } else if (isInserting) {
       context.missing(_titleMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
     }
     if (data.containsKey('is_completed')) {
       context.handle(
@@ -146,6 +167,10 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TodoTask> {
         DriftSqlType.string,
         data['${effectivePrefix}title'],
       )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
       isCompleted: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_completed'],
@@ -174,6 +199,9 @@ class TodoTask extends DataClass implements Insertable<TodoTask> {
   /// Título de la tarea
   final String title;
 
+  /// Descripción de la tarea (opcional)
+  final String? description;
+
   /// Estado de completado de la tarea
   final bool isCompleted;
 
@@ -185,6 +213,7 @@ class TodoTask extends DataClass implements Insertable<TodoTask> {
   const TodoTask({
     required this.id,
     required this.title,
+    this.description,
     required this.isCompleted,
     required this.createdAt,
     required this.updatedAt,
@@ -194,6 +223,9 @@ class TodoTask extends DataClass implements Insertable<TodoTask> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['title'] = Variable<String>(title);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
     map['is_completed'] = Variable<bool>(isCompleted);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -204,6 +236,9 @@ class TodoTask extends DataClass implements Insertable<TodoTask> {
     return TasksCompanion(
       id: Value(id),
       title: Value(title),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
       isCompleted: Value(isCompleted),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -218,6 +253,7 @@ class TodoTask extends DataClass implements Insertable<TodoTask> {
     return TodoTask(
       id: serializer.fromJson<int>(json['id']),
       title: serializer.fromJson<String>(json['title']),
+      description: serializer.fromJson<String?>(json['description']),
       isCompleted: serializer.fromJson<bool>(json['isCompleted']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -229,6 +265,7 @@ class TodoTask extends DataClass implements Insertable<TodoTask> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'title': serializer.toJson<String>(title),
+      'description': serializer.toJson<String?>(description),
       'isCompleted': serializer.toJson<bool>(isCompleted),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -238,12 +275,14 @@ class TodoTask extends DataClass implements Insertable<TodoTask> {
   TodoTask copyWith({
     int? id,
     String? title,
+    Value<String?> description = const Value.absent(),
     bool? isCompleted,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => TodoTask(
     id: id ?? this.id,
     title: title ?? this.title,
+    description: description.present ? description.value : this.description,
     isCompleted: isCompleted ?? this.isCompleted,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -252,6 +291,9 @@ class TodoTask extends DataClass implements Insertable<TodoTask> {
     return TodoTask(
       id: data.id.present ? data.id.value : this.id,
       title: data.title.present ? data.title.value : this.title,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
       isCompleted: data.isCompleted.present
           ? data.isCompleted.value
           : this.isCompleted,
@@ -265,6 +307,7 @@ class TodoTask extends DataClass implements Insertable<TodoTask> {
     return (StringBuffer('TodoTask(')
           ..write('id: $id, ')
           ..write('title: $title, ')
+          ..write('description: $description, ')
           ..write('isCompleted: $isCompleted, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -273,13 +316,15 @@ class TodoTask extends DataClass implements Insertable<TodoTask> {
   }
 
   @override
-  int get hashCode => Object.hash(id, title, isCompleted, createdAt, updatedAt);
+  int get hashCode =>
+      Object.hash(id, title, description, isCompleted, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is TodoTask &&
           other.id == this.id &&
           other.title == this.title &&
+          other.description == this.description &&
           other.isCompleted == this.isCompleted &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -288,12 +333,14 @@ class TodoTask extends DataClass implements Insertable<TodoTask> {
 class TasksCompanion extends UpdateCompanion<TodoTask> {
   final Value<int> id;
   final Value<String> title;
+  final Value<String?> description;
   final Value<bool> isCompleted;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const TasksCompanion({
     this.id = const Value.absent(),
     this.title = const Value.absent(),
+    this.description = const Value.absent(),
     this.isCompleted = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -301,6 +348,7 @@ class TasksCompanion extends UpdateCompanion<TodoTask> {
   TasksCompanion.insert({
     this.id = const Value.absent(),
     required String title,
+    this.description = const Value.absent(),
     this.isCompleted = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -308,6 +356,7 @@ class TasksCompanion extends UpdateCompanion<TodoTask> {
   static Insertable<TodoTask> custom({
     Expression<int>? id,
     Expression<String>? title,
+    Expression<String>? description,
     Expression<bool>? isCompleted,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -315,6 +364,7 @@ class TasksCompanion extends UpdateCompanion<TodoTask> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (title != null) 'title': title,
+      if (description != null) 'description': description,
       if (isCompleted != null) 'is_completed': isCompleted,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -324,6 +374,7 @@ class TasksCompanion extends UpdateCompanion<TodoTask> {
   TasksCompanion copyWith({
     Value<int>? id,
     Value<String>? title,
+    Value<String?>? description,
     Value<bool>? isCompleted,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -331,6 +382,7 @@ class TasksCompanion extends UpdateCompanion<TodoTask> {
     return TasksCompanion(
       id: id ?? this.id,
       title: title ?? this.title,
+      description: description ?? this.description,
       isCompleted: isCompleted ?? this.isCompleted,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -345,6 +397,9 @@ class TasksCompanion extends UpdateCompanion<TodoTask> {
     }
     if (title.present) {
       map['title'] = Variable<String>(title.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
     }
     if (isCompleted.present) {
       map['is_completed'] = Variable<bool>(isCompleted.value);
@@ -363,6 +418,7 @@ class TasksCompanion extends UpdateCompanion<TodoTask> {
     return (StringBuffer('TasksCompanion(')
           ..write('id: $id, ')
           ..write('title: $title, ')
+          ..write('description: $description, ')
           ..write('isCompleted: $isCompleted, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -387,6 +443,7 @@ typedef $$TasksTableCreateCompanionBuilder =
     TasksCompanion Function({
       Value<int> id,
       required String title,
+      Value<String?> description,
       Value<bool> isCompleted,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -395,6 +452,7 @@ typedef $$TasksTableUpdateCompanionBuilder =
     TasksCompanion Function({
       Value<int> id,
       Value<String> title,
+      Value<String?> description,
       Value<bool> isCompleted,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -415,6 +473,11 @@ class $$TasksTableFilterComposer extends Composer<_$TodoDatabase, $TasksTable> {
 
   ColumnFilters<String> get title => $composableBuilder(
     column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -453,6 +516,11 @@ class $$TasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isCompleted => $composableBuilder(
     column: $table.isCompleted,
     builder: (column) => ColumnOrderings(column),
@@ -483,6 +551,11 @@ class $$TasksTableAnnotationComposer
 
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get isCompleted => $composableBuilder(
     column: $table.isCompleted,
@@ -526,12 +599,14 @@ class $$TasksTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<String> title = const Value.absent(),
+                Value<String?> description = const Value.absent(),
                 Value<bool> isCompleted = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => TasksCompanion(
                 id: id,
                 title: title,
+                description: description,
                 isCompleted: isCompleted,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -540,12 +615,14 @@ class $$TasksTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 required String title,
+                Value<String?> description = const Value.absent(),
                 Value<bool> isCompleted = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => TasksCompanion.insert(
                 id: id,
                 title: title,
+                description: description,
                 isCompleted: isCompleted,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

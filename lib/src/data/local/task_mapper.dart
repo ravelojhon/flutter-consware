@@ -11,6 +11,7 @@ class TaskMapper {
     return TasksCompanion(
       id: task.isNew ? const Value.absent() : Value(task.id),
       title: Value(task.title),
+      description: Value(task.description),
       isCompleted: Value(task.isCompleted),
       createdAt: Value(task.createdAt),
       updatedAt: Value(task.updatedAt),
@@ -23,6 +24,7 @@ class TaskMapper {
     return Task(
       id: dto.id,
       title: dto.title,
+      description: dto.description,
       isCompleted: dto.isCompleted,
       createdAt: dto.createdAt,
       updatedAt: dto.updatedAt,
