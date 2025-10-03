@@ -231,6 +231,34 @@ flutter build web --release
 }
 ```
 
+## 🔧 Gestión de Hooks de Git
+
+### Deshabilitar Hooks (Para Evitar Bloqueos)
+Si encuentras problemas con los hooks de Git que bloquean commits o pushes:
+
+**En Windows:**
+```bash
+scripts\disable-hooks.bat
+```
+
+**En Linux/Mac:**
+```bash
+bash scripts/disable-hooks.sh
+```
+
+### Re-habilitar Hooks
+Para volver a activar la validación automática:
+
+**En Windows:**
+```bash
+scripts\enable-hooks.bat
+```
+
+**En Linux/Mac:**
+```bash
+bash scripts/enable-hooks.sh
+```
+
 ## 📱 Capturas de Pantalla
 
 ### Pantalla Principal
