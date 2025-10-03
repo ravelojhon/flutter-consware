@@ -8,7 +8,7 @@ void main() {
     test('taskListProvider should be defined', () {
       // Arrange & Act
       final provider = taskListProvider;
-      
+
       // Assert
       expect(provider, isNotNull);
     });
@@ -16,7 +16,7 @@ void main() {
     test('completedTasksProvider should be defined', () {
       // Arrange & Act
       final provider = completedTasksProvider;
-      
+
       // Assert
       expect(provider, isNotNull);
     });
@@ -24,7 +24,7 @@ void main() {
     test('pendingTasksProvider should be defined', () {
       // Arrange & Act
       final provider = pendingTasksProvider;
-      
+
       // Assert
       expect(provider, isNotNull);
     });
@@ -32,7 +32,7 @@ void main() {
     test('taskStatsProvider should be defined', () {
       // Arrange & Act
       final provider = taskStatsProvider;
-      
+
       // Assert
       expect(provider, isNotNull);
     });
@@ -40,7 +40,7 @@ void main() {
     test('isLoadingProvider should be defined', () {
       // Arrange & Act
       final provider = isLoadingProvider;
-      
+
       // Assert
       expect(provider, isNotNull);
     });
@@ -48,7 +48,7 @@ void main() {
     test('hasErrorProvider should be defined', () {
       // Arrange & Act
       final provider = hasErrorProvider;
-      
+
       // Assert
       expect(provider, isNotNull);
     });
@@ -56,7 +56,7 @@ void main() {
     test('hasTasksProvider should be defined', () {
       // Arrange & Act
       final provider = hasTasksProvider;
-      
+
       // Assert
       expect(provider, isNotNull);
     });

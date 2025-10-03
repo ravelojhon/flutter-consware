@@ -5,40 +5,45 @@ import '../providers/task_list_notifier.dart';
 
 /// Provider principal para la lista de tareas
 /// Expone el estado y métodos para CRUD
-final taskListProvider = AsyncNotifierProvider<TaskListNotifier, List<Task>>(() {
-  return TaskListNotifier();
-});
+final taskListProvider = AsyncNotifierProvider<TaskListNotifier, List<Task>>(
+  () {
+    return TaskListNotifier();
+  },
+);
 
 /// Provider para tareas completadas (computado)
 final completedTasksProvider = Provider<List<Task>>((ref) {
   final taskListState = ref.watch(taskListProvider);
   return taskListState.whenOrNull(
-    data: (tasks) => tasks.where((task) => task.isCompleted).toList(),
-  ) ?? [];
+        data: (tasks) => tasks.where((task) => task.isCompleted).toList(),
+      ) ??
+      [];
 });
 
 /// Provider para tareas pendientes (computado)
 final pendingTasksProvider = Provider<List<Task>>((ref) {
   final taskListState = ref.watch(taskListProvider);
   return taskListState.whenOrNull(
-    data: (tasks) => tasks.where((task) => !task.isCompleted).toList(),
-  ) ?? [];
+        data: (tasks) => tasks.where((task) => !task.isCompleted).toList(),
+      ) ??
+      [];
 });
 
 /// Provider para estadísticas de tareas (computado)
 final taskStatsProvider = Provider<TaskStats>((ref) {
   final taskListState = ref.watch(taskListProvider);
   return taskListState.whenOrNull(
-    data: (tasks) {
-      final completed = tasks.where((task) => task.isCompleted).length;
-      final pending = tasks.length - completed;
-      return TaskStats(
-        total: tasks.length,
-        completed: completed,
-        pending: pending,
-      );
-    },
-  ) ?? const TaskStats(total: 0, completed: 0, pending: 0);
+        data: (tasks) {
+          final completed = tasks.where((task) => task.isCompleted).length;
+          final pending = tasks.length - completed;
+          return TaskStats(
+            total: tasks.length,
+            completed: completed,
+            pending: pending,
+          );
+        },
+      ) ??
+      const TaskStats(total: 0, completed: 0, pending: 0);
 });
 
 /// Provider para una tarea específica por ID
@@ -69,30 +74,35 @@ final filteredTasksProvider = Provider.family<List<Task>, String>((ref, query) {
 
   final taskListState = ref.watch(taskListProvider);
   return taskListState.whenOrNull(
-    data: (tasks) {
-      final lowercaseQuery = query.toLowerCase();
-      return tasks.where((task) {
-        return task.title.toLowerCase().contains(lowercaseQuery);
-      }).toList();
-    },
-  ) ?? [];
+        data: (tasks) {
+          final lowercaseQuery = query.toLowerCase();
+          return tasks.where((task) {
+            return task.title.toLowerCase().contains(lowercaseQuery);
+          }).toList();
+        },
+      ) ??
+      [];
 });
 
 /// Provider para tareas filtradas por estado
-final tasksByStatusProvider = Provider.family<List<Task>, TaskStatus>((ref, status) {
+final tasksByStatusProvider = Provider.family<List<Task>, TaskStatus>((
+  ref,
+  status,
+) {
   final taskListState = ref.watch(taskListProvider);
   return taskListState.whenOrNull(
-    data: (tasks) {
-      switch (status) {
-        case TaskStatus.all:
-          return tasks;
-        case TaskStatus.completed:
-          return tasks.where((task) => task.isCompleted).toList();
-        case TaskStatus.pending:
-          return tasks.where((task) => !task.isCompleted).toList();
-      }
-    },
-  ) ?? [];
+        data: (tasks) {
+          switch (status) {
+            case TaskStatus.all:
+              return tasks;
+            case TaskStatus.completed:
+              return tasks.where((task) => task.isCompleted).toList();
+            case TaskStatus.pending:
+              return tasks.where((task) => !task.isCompleted).toList();
+          }
+        },
+      ) ??
+      [];
 });
 
 /// Provider para el estado de carga
@@ -118,9 +128,7 @@ final errorMessageProvider = Provider<String?>((ref) {
 /// Provider para verificar si hay tareas
 final hasTasksProvider = Provider<bool>((ref) {
   final taskListState = ref.watch(taskListProvider);
-  return taskListState.whenOrNull(
-    data: (tasks) => tasks.isNotEmpty,
-  ) ?? false;
+  return taskListState.whenOrNull(data: (tasks) => tasks.isNotEmpty) ?? false;
 });
 
 /// Provider para verificar si todas las tareas están completadas
@@ -136,11 +144,7 @@ final noPendingTasksProvider = Provider<bool>((ref) {
 });
 
 /// Enumeración para estados de tareas
-enum TaskStatus {
-  all,
-  completed,
-  pending,
-}
+enum TaskStatus { all, completed, pending }
 
 /// Extension para obtener el texto del estado
 extension TaskStatusExtension on TaskStatus {

@@ -27,7 +27,8 @@ class TaskProvidersExample {
               children: [
                 Text('Error: $errorMessage'),
                 ElevatedButton(
-                  onPressed: () => ref.read(taskListProvider.notifier).refresh(),
+                  onPressed: () =>
+                      ref.read(taskListProvider.notifier).refresh(),
                   child: const Text('Reintentar'),
                 ),
               ],
@@ -46,7 +47,9 @@ class TaskProvidersExample {
                 trailing: Checkbox(
                   value: task.isCompleted,
                   onChanged: (value) {
-                    ref.read(taskListProvider.notifier).toggleTaskCompletion(task.id);
+                    ref
+                        .read(taskListProvider.notifier)
+                        .toggleTaskCompletion(task.id);
                   },
                 ),
                 onTap: () {
@@ -56,9 +59,7 @@ class TaskProvidersExample {
             },
           ),
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => Center(
-            child: Text('Error: $error'),
-          ),
+          error: (error, stackTrace) => Center(child: Text('Error: $error')),
         );
       },
     );
@@ -76,7 +77,10 @@ class TaskProvidersExample {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Estadísticas de Tareas', style: Theme.of(context).textTheme.headlineSmall),
+                Text(
+                  'Estadísticas de Tareas',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -84,7 +88,10 @@ class TaskProvidersExample {
                     _buildStatItem('Total', stats.total.toString()),
                     _buildStatItem('Completadas', stats.completed.toString()),
                     _buildStatItem('Pendientes', stats.pending.toString()),
-                    _buildStatItem('Progreso', '${stats.completionPercentage.toStringAsFixed(1)}%'),
+                    _buildStatItem(
+                      'Progreso',
+                      '${stats.completionPercentage.toStringAsFixed(1)}%',
+                    ),
                   ],
                 ),
               ],
@@ -159,7 +166,9 @@ class TaskProvidersExample {
             Expanded(
               child: Consumer(
                 builder: (context, ref, child) {
-                  final filteredTasks = ref.watch(filteredTasksProvider(searchQuery));
+                  final filteredTasks = ref.watch(
+                    filteredTasksProvider(searchQuery),
+                  );
 
                   if (filteredTasks.isEmpty) {
                     return const Center(
@@ -176,11 +185,17 @@ class TaskProvidersExample {
                         subtitle: Text(task.statusText),
                         trailing: IconButton(
                           icon: Icon(
-                            task.isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
-                            color: task.isCompleted ? Colors.green : Colors.grey,
+                            task.isCompleted
+                                ? Icons.check_circle
+                                : Icons.radio_button_unchecked,
+                            color: task.isCompleted
+                                ? Colors.green
+                                : Colors.grey,
                           ),
                           onPressed: () {
-                            ref.read(taskListProvider.notifier).toggleTaskCompletion(task.id);
+                            ref
+                                .read(taskListProvider.notifier)
+                                .toggleTaskCompletion(task.id);
                           },
                         ),
                       );
@@ -219,11 +234,15 @@ class TaskProvidersExample {
             Expanded(
               child: Consumer(
                 builder: (context, ref, child) {
-                  final tasks = ref.watch(tasksByStatusProvider(selectedStatus));
+                  final tasks = ref.watch(
+                    tasksByStatusProvider(selectedStatus),
+                  );
 
                   if (tasks.isEmpty) {
                     return Center(
-                      child: Text('No hay tareas ${selectedStatus.displayName.toLowerCase()}'),
+                      child: Text(
+                        'No hay tareas ${selectedStatus.displayName.toLowerCase()}',
+                      ),
                     );
                   }
 
@@ -233,24 +252,34 @@ class TaskProvidersExample {
                       final task = tasks[index];
                       return ListTile(
                         title: Text(task.title),
-                        subtitle: Text('Creada: ${_formatDate(task.createdAt)}'),
+                        subtitle: Text(
+                          'Creada: ${_formatDate(task.createdAt)}',
+                        ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              task.isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
-                              color: task.isCompleted ? Colors.green : Colors.grey,
+                              task.isCompleted
+                                  ? Icons.check_circle
+                                  : Icons.radio_button_unchecked,
+                              color: task.isCompleted
+                                  ? Colors.green
+                                  : Colors.grey,
                             ),
                             IconButton(
                               icon: const Icon(Icons.delete),
                               onPressed: () {
-                                ref.read(taskListProvider.notifier).deleteTask(task.id);
+                                ref
+                                    .read(taskListProvider.notifier)
+                                    .deleteTask(task.id);
                               },
                             ),
                           ],
                         ),
                         onTap: () {
-                          ref.read(taskListProvider.notifier).toggleTaskCompletion(task.id);
+                          ref
+                              .read(taskListProvider.notifier)
+                              .toggleTaskCompletion(task.id);
                         },
                       );
                     },
@@ -314,13 +343,20 @@ class TaskProvidersExample {
   static Widget _buildStatItem(String label, String value) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
         Text(label, style: const TextStyle(fontSize: 12)),
       ],
     );
   }
 
-  static Widget _buildStatusButton(WidgetRef ref, TaskStatus status, String label) {
+  static Widget _buildStatusButton(
+    WidgetRef ref,
+    TaskStatus status,
+    String label,
+  ) {
     return Consumer(
       builder: (context, ref, child) {
         // Aquí se implementaría la lógica para cambiar el estado seleccionado

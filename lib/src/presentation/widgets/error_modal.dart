@@ -18,9 +18,7 @@ class ErrorModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
@@ -28,10 +26,7 @@ class ErrorModal extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Colors.red[50]!,
-              Colors.red[100]!,
-            ],
+            colors: [Colors.red[50]!, Colors.red[100]!],
           ),
         ),
         child: Column(
@@ -52,7 +47,7 @@ class ErrorModal extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            
+
             // Título
             Text(
               title,
@@ -64,7 +59,7 @@ class ErrorModal extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
-            
+
             // Mensaje
             Text(
               message,
@@ -76,7 +71,7 @@ class ErrorModal extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-            
+
             // Botones
             Row(
               children: [
@@ -95,7 +90,7 @@ class ErrorModal extends StatelessWidget {
                     child: const Text('Cerrar'),
                   ),
                 ),
-                
+
                 // Botón de reintentar (si existe)
                 if (onRetry != null) ...[
                   const SizedBox(width: 12),

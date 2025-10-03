@@ -1,0 +1,95 @@
+# Configuración de pre-commit hooks para el proyecto Flutter
+# Instalar con: pip install pre-commit && pre-commit install
+
+repos:
+  # Hooks básicos de Git
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        description: "Remover espacios en blanco al final de líneas"
+      - id: end-of-file-fixer
+        description: "Asegurar que los archivos terminen con nueva línea"
+      - id: check-yaml
+        description: "Verificar sintaxis de archivos YAML"
+      - id: check-json
+        description: "Verificar sintaxis de archivos JSON"
+      - id: check-added-large-files
+        description: "Verificar que no se añadan archivos muy grandes"
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+        description: "Verificar que no hay marcadores de conflicto de merge"
+      - id: check-case-conflict
+        description: "Verificar conflictos de mayúsculas/minúsculas en nombres"
+      - id: mixed-line-ending
+        description: "Verificar terminaciones de línea consistentes"
+
+  # Hooks específicos para Flutter/Dart
+  - repo: local
+    hooks:
+      - id: dart-format
+        name: dart format
+        description: "Formatear código Dart"
+        entry: dart format
+        language: system
+        types: [dart]
+        args: [--set-exit-if-changed]
+        
+      - id: flutter-analyze
+        name: flutter analyze
+        description: "Análisis estático de Flutter"
+        entry: flutter analyze
+        language: system
+        types: [dart]
+        
+      - id: dart-fix
+        name: dart fix
+        description: "Corregir problemas menores de Dart"
+        entry: dart fix
+        language: system
+        types: [dart]
+        args: [--apply]
+        
+      - id: flutter-test
+        name: flutter test
+        description: "Ejecutar tests de Flutter"
+        entry: flutter test
+        language: system
+        types: [dart]
+        pass_filenames: false
+        always_run: false
+        
+      - id: build-runner
+        name: build runner
+        description: "Generar archivos con build_runner"
+        entry: dart run build_runner build --delete-conflicting-outputs
+        language: system
+        types: [dart]
+        pass_filenames: false
+        always_run: false
+
+  # Hooks para archivos de configuración
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.1.0
+    hooks:
+      - id: prettier
+        description: "Formatear archivos con Prettier"
+        types: [yaml, json, markdown]
+        exclude: ^(pubspec\.yaml|analysis_options\.yaml)$
+
+  # Hooks de seguridad
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        description: "Detectar secretos en el código"
+        args: ['--baseline', '.secrets.baseline']
+        exclude: ^(pubspec\.lock|\.pub-cache/.*)$
+
+# Configuración global
+default_stages: [commit]
+fail_fast: false
+minimum_pre_commit_version: '3.0.0'
+
+# Configuración de merge
+merge_without_ci: true
