@@ -3,53 +3,83 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
-import 'package:sqflite/sqflite.dart';
 
+import '../../domain/entities/task.dart';
 import 'todo_tables.dart';
+import 'task_mapper.dart';
 
 part 'todo_database.g.dart';
 
 /// DAO (Data Access Object) para operaciones CRUD de tareas
+/// Ahora trabaja con entidades del dominio en lugar de DTOs directamente
 @DriftAccessor(tables: [Tasks])
 class TasksDao extends DatabaseAccessor<TodoDatabase> with _$TasksDaoMixin {
   TasksDao(super.db);
 
   /// Obtener todas las tareas ordenadas por fecha de creación
-  Future<List<TodoTask>> getAllTasks() => select(tasks).get();
+  Future<List<Task>> getAllTasks() async {
+    final dtoList = await select(tasks).get();
+    return TaskMapper.toEntityList(dtoList);
+  }
 
   /// Obtener todas las tareas ordenadas por fecha de actualización (más recientes primero)
-  Future<List<TodoTask>> getAllTasksOrderedByUpdated() =>
-      (select(tasks)..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])).get();
+  Future<List<Task>> getAllTasksOrderedByUpdated() async {
+    final dtoList = await (select(
+      tasks,
+    )..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])).get();
+    return TaskMapper.toEntityList(dtoList);
+  }
 
   /// Obtener tareas completadas
-  Future<List<TodoTask>> getCompletedTasks() =>
-      (select(tasks)..where((t) => t.isCompleted.equals(true))).get();
+  Future<List<Task>> getCompletedTasks() async {
+    final dtoList = await (select(
+      tasks,
+    )..where((t) => t.isCompleted.equals(true))).get();
+    return TaskMapper.toEntityList(dtoList);
+  }
 
   /// Obtener tareas pendientes
-  Future<List<TodoTask>> getPendingTasks() =>
-      (select(tasks)..where((t) => t.isCompleted.equals(false))).get();
+  Future<List<Task>> getPendingTasks() async {
+    final dtoList = await (select(
+      tasks,
+    )..where((t) => t.isCompleted.equals(false))).get();
+    return TaskMapper.toEntityList(dtoList);
+  }
 
   /// Obtener una tarea por ID
-  Future<TodoTask?> getTaskById(int id) =>
-      (select(tasks)..where((t) => t.id.equals(id))).getSingleOrNull();
+  Future<Task?> getTaskById(int id) async {
+    final dto = await (select(
+      tasks,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    return dto != null ? TaskMapper.toEntity(dto) : null;
+  }
 
-  /// Insertar una nueva tarea
-  Future<int> insertTask(TasksCompanion task) => into(tasks).insert(task);
+  /// Insertar una nueva tarea desde entidad del dominio
+  Future<int> insertTask(Task task) async {
+    final companion = TaskMapper.toCompanion(task);
+    return await into(tasks).insert(companion);
+  }
+
+  /// Insertar una nueva tarea con título
+  Future<int> insertTaskFromTitle(String title) async {
+    final companion = TaskMapper.createCompanion(title: title);
+    return await into(tasks).insert(companion);
+  }
 
   /// Actualizar una tarea existente
-  Future<bool> updateTask(TasksCompanion task) => update(tasks).replace(task);
+  Future<bool> updateTask(Task task) async {
+    final companion = TaskMapper.toCompanion(task);
+    await update(tasks).replace(companion);
+    return true;
+  }
 
   /// Marcar una tarea como completada o pendiente
   Future<bool> toggleTaskCompletion(int id) async {
     final task = await getTaskById(id);
     if (task == null) return false;
 
-    final updatedTask = task.copyWith(
-      isCompleted: !task.isCompleted,
-      updatedAt: DateTime.now(),
-    );
-
-    return updateTask(updatedTask.toCompanion(true));
+    final updatedTask = task.toggleCompletion();
+    return await updateTask(updatedTask);
   }
 
   /// Actualizar el título de una tarea
@@ -57,12 +87,8 @@ class TasksDao extends DatabaseAccessor<TodoDatabase> with _$TasksDaoMixin {
     final task = await getTaskById(id);
     if (task == null) return false;
 
-    final updatedTask = task.copyWith(
-      title: newTitle,
-      updatedAt: DateTime.now(),
-    );
-
-    return updateTask(updatedTask.toCompanion(true));
+    final updatedTask = task.updateTitle(newTitle);
+    return await updateTask(updatedTask);
   }
 
   /// Eliminar una tarea por ID
@@ -74,31 +100,36 @@ class TasksDao extends DatabaseAccessor<TodoDatabase> with _$TasksDaoMixin {
   }
 
   /// Eliminar todas las tareas completadas
-  Future<int> deleteCompletedTasks() =>
-      (delete(tasks)..where((t) => t.isCompleted.equals(true))).go();
+  Future<int> deleteCompletedTasks() async {
+    final deletedRows = await (delete(
+      tasks,
+    )..where((t) => t.isCompleted.equals(true))).go();
+    return deletedRows;
+  }
 
   /// Eliminar todas las tareas
-  Future<int> deleteAllTasks() => delete(tasks).go();
+  Future<int> deleteAllTasks() async {
+    final deletedRows = await delete(tasks).go();
+    return deletedRows;
+  }
 
   /// Contar el total de tareas
-  Future<int> getTotalTasksCount() => selectOnly(tasks)
-      .addColumns([tasks.id.count()])
-      .map((row) => row.read(tasks.id.count()))
-      .getSingle();
+  Future<int> getTotalTasksCount() async {
+    final allTasks = await getAllTasks();
+    return allTasks.length;
+  }
 
   /// Contar tareas completadas
-  Future<int> getCompletedTasksCount() =>
-      (selectOnly(tasks)..where(tasks.isCompleted.equals(true)))
-          .addColumns([tasks.id.count()])
-          .map((row) => row.read(tasks.id.count()))
-          .getSingle();
+  Future<int> getCompletedTasksCount() async {
+    final completedTasks = await getCompletedTasks();
+    return completedTasks.length;
+  }
 
   /// Contar tareas pendientes
-  Future<int> getPendingTasksCount() =>
-      (selectOnly(tasks)..where(tasks.isCompleted.equals(false)))
-          .addColumns([tasks.id.count()])
-          .map((row) => row.read(tasks.id.count()))
-          .getSingle();
+  Future<int> getPendingTasksCount() async {
+    final pendingTasks = await getPendingTasks();
+    return pendingTasks.length;
+  }
 }
 
 /// Base de datos principal de la aplicación usando Drift
