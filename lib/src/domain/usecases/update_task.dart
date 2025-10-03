@@ -54,7 +54,10 @@ class UpdateTask {
 
     final titleValidation = _validateTitle(newTitle);
     if (titleValidation.isLeft()) {
-      return titleValidation;
+      return dartz.Left(titleValidation.fold(
+        (failure) => failure,
+        (title) => throw Exception('Unexpected error'),
+      ));
     }
 
     // Delegar al repositorio
