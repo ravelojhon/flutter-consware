@@ -15,12 +15,7 @@ import 'package:app_consware/src/core/di/dependency_injection.dart';
 
 import 'task_list_notifier_test.mocks.dart';
 
-@GenerateMocks([
-  GetTasks,
-  AddTask,
-  UpdateTask,
-  DeleteTask,
-])
+@GenerateMocks([GetTasks, AddTask, UpdateTask, DeleteTask])
 void main() {
   late MockGetTasks mockGetTasks;
   late MockAddTask mockAddTask;
@@ -61,7 +56,9 @@ void main() {
     group('build', () {
       test('should return loading state initially', () async {
         // Arrange
-        when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([testTask]));
+        when(
+          mockGetTasks.call(),
+        ).thenAnswer((_) async => dartz.Right([testTask]));
 
         // Act
         final notifier = container.read(taskListProvider.notifier);
@@ -90,21 +87,28 @@ void main() {
     group('refresh', () {
       test('should reload tasks successfully', () async {
         // Arrange
-        when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([testTask]));
+        when(
+          mockGetTasks.call(),
+        ).thenAnswer((_) async => dartz.Right([testTask]));
         final notifier = container.read(taskListProvider.notifier);
 
         // Act
         await notifier.refresh();
 
         // Assert
-        verify(mockGetTasks.call()).called(2); // Once for build, once for refresh
+        verify(
+          mockGetTasks.call(),
+        ).called(2); // Once for build, once for refresh
       });
 
       test('should handle error during refresh', () async {
         // Arrange
         when(mockGetTasks.call())
             .thenAnswer((_) async => dartz.Right([testTask]))
-            .thenAnswer((_) async => dartz.Left(DatabaseFailure(message: 'Database error')));
+            .thenAnswer(
+              (_) async =>
+                  dartz.Left(DatabaseFailure(message: 'Database error')),
+            );
         final notifier = container.read(taskListProvider.notifier);
 
         // Act & Assert
@@ -117,11 +121,13 @@ void main() {
       test('should add task successfully', () async {
         // Arrange
         when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([]));
-        when(mockAddTask.call(
-          title: anyNamed('title'),
-          description: anyNamed('description'),
-          isCompleted: anyNamed('isCompleted'),
-        )).thenAnswer((_) async => dartz.Right(testTask));
+        when(
+          mockAddTask.call(
+            title: anyNamed('title'),
+            description: anyNamed('description'),
+            isCompleted: anyNamed('isCompleted'),
+          ),
+        ).thenAnswer((_) async => dartz.Right(testTask));
         final notifier = container.read(taskListProvider.notifier);
 
         // Act
@@ -132,23 +138,28 @@ void main() {
         );
 
         // Assert
-        verify(mockAddTask.call(
-          title: 'New Task',
-          description: 'New Description',
-          isCompleted: false,
-        )).called(1);
+        verify(
+          mockAddTask.call(
+            title: 'New Task',
+            description: 'New Description',
+            isCompleted: false,
+          ),
+        ).called(1);
         verify(mockGetTasks.call()).called(1); // For refresh
       });
 
       test('should handle error when adding task', () async {
         // Arrange
         when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([]));
-        when(mockAddTask.call(
-          title: anyNamed('title'),
-          description: anyNamed('description'),
-          isCompleted: anyNamed('isCompleted'),
-        )).thenAnswer(
-          (_) async => dartz.Left(ValidationFailure(message: 'Validation error')),
+        when(
+          mockAddTask.call(
+            title: anyNamed('title'),
+            description: anyNamed('description'),
+            isCompleted: anyNamed('isCompleted'),
+          ),
+        ).thenAnswer(
+          (_) async =>
+              dartz.Left(ValidationFailure(message: 'Validation error')),
         );
         final notifier = container.read(taskListProvider.notifier);
 
@@ -161,19 +172,25 @@ void main() {
           ),
           throwsA(isA<Exception>()),
         );
-        verify(mockAddTask.call(
-          title: 'New Task',
-          description: 'New Description',
-          isCompleted: false,
-        )).called(1);
+        verify(
+          mockAddTask.call(
+            title: 'New Task',
+            description: 'New Description',
+            isCompleted: false,
+          ),
+        ).called(1);
       });
     });
 
     group('updateTask', () {
       test('should update task successfully', () async {
         // Arrange
-        when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([testTask]));
-        when(mockUpdateTask.call(any)).thenAnswer((_) async => dartz.Right(testTask));
+        when(
+          mockGetTasks.call(),
+        ).thenAnswer((_) async => dartz.Right([testTask]));
+        when(
+          mockUpdateTask.call(any),
+        ).thenAnswer((_) async => dartz.Right(testTask));
         final notifier = container.read(taskListProvider.notifier);
 
         // Act
@@ -186,17 +203,16 @@ void main() {
 
       test('should handle error when updating task', () async {
         // Arrange
-        when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([testTask]));
+        when(
+          mockGetTasks.call(),
+        ).thenAnswer((_) async => dartz.Right([testTask]));
         when(mockUpdateTask.call(any)).thenAnswer(
           (_) async => dartz.Left(DatabaseFailure(message: 'Database error')),
         );
         final notifier = container.read(taskListProvider.notifier);
 
         // Act & Assert
-        expect(
-          () => notifier.updateTask(testTask),
-          throwsA(isA<Exception>()),
-        );
+        expect(() => notifier.updateTask(testTask), throwsA(isA<Exception>()));
         verify(mockUpdateTask.call(testTask)).called(1);
       });
     });
@@ -204,7 +220,9 @@ void main() {
     group('deleteTask', () {
       test('should delete task successfully', () async {
         // Arrange
-        when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([testTask]));
+        when(
+          mockGetTasks.call(),
+        ).thenAnswer((_) async => dartz.Right([testTask]));
         when(mockDeleteTask.call(1)).thenAnswer((_) async => dartz.Right(true));
         final notifier = container.read(taskListProvider.notifier);
 
@@ -217,17 +235,16 @@ void main() {
 
       test('should handle error when deleting task', () async {
         // Arrange
-        when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([testTask]));
+        when(
+          mockGetTasks.call(),
+        ).thenAnswer((_) async => dartz.Right([testTask]));
         when(mockDeleteTask.call(1)).thenAnswer(
           (_) async => dartz.Left(DatabaseFailure(message: 'Database error')),
         );
         final notifier = container.read(taskListProvider.notifier);
 
         // Act & Assert
-        expect(
-          () => notifier.deleteTask(1),
-          throwsA(isA<Exception>()),
-        );
+        expect(() => notifier.deleteTask(1), throwsA(isA<Exception>()));
         verify(mockDeleteTask.call(1)).called(1);
       });
     });
@@ -235,8 +252,12 @@ void main() {
     group('toggleTaskCompletion', () {
       test('should toggle task completion successfully', () async {
         // Arrange
-        when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([testTask]));
-        when(mockUpdateTask.call(any)).thenAnswer((_) async => dartz.Right(testTask));
+        when(
+          mockGetTasks.call(),
+        ).thenAnswer((_) async => dartz.Right([testTask]));
+        when(
+          mockUpdateTask.call(any),
+        ).thenAnswer((_) async => dartz.Right(testTask));
         final notifier = container.read(taskListProvider.notifier);
 
         // Act
@@ -248,7 +269,9 @@ void main() {
 
       test('should handle error when toggling task completion', () async {
         // Arrange
-        when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([testTask]));
+        when(
+          mockGetTasks.call(),
+        ).thenAnswer((_) async => dartz.Right([testTask]));
         when(mockUpdateTask.call(any)).thenAnswer(
           (_) async => dartz.Left(DatabaseFailure(message: 'Database error')),
         );

@@ -17,12 +17,7 @@ import 'package:app_consware/src/core/di/dependency_injection.dart';
 
 import 'improved_task_list_screen_test.mocks.dart';
 
-@GenerateMocks([
-  GetTasks,
-  AddTask,
-  UpdateTask,
-  DeleteTask,
-])
+@GenerateMocks([GetTasks, AddTask, UpdateTask, DeleteTask])
 void main() {
   late MockGetTasks mockGetTasks;
   late MockAddTask mockAddTask;
@@ -53,9 +48,7 @@ void main() {
   Widget createWidgetUnderTest() {
     return ProviderScope(
       overrides: container.overrides,
-      child: MaterialApp(
-        home: const ImprovedTaskListScreen(),
-      ),
+      child: MaterialApp(home: const ImprovedTaskListScreen()),
     );
   }
 
@@ -69,7 +62,9 @@ void main() {
       updatedAt: DateTime(2024, 1, 1),
     );
 
-    testWidgets('should display loading indicator initially', (WidgetTester tester) async {
+    testWidgets('should display loading indicator initially', (
+      WidgetTester tester,
+    ) async {
       // Arrange
       when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([]));
 
@@ -80,9 +75,13 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('should display task list when data is loaded', (WidgetTester tester) async {
+    testWidgets('should display task list when data is loaded', (
+      WidgetTester tester,
+    ) async {
       // Arrange
-      when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([testTask]));
+      when(
+        mockGetTasks.call(),
+      ).thenAnswer((_) async => dartz.Right([testTask]));
 
       // Act
       await tester.pumpWidget(createWidgetUnderTest());
@@ -94,7 +93,9 @@ void main() {
       expect(find.text('Pendiente'), findsOneWidget);
     });
 
-    testWidgets('should display empty state when no tasks', (WidgetTester tester) async {
+    testWidgets('should display empty state when no tasks', (
+      WidgetTester tester,
+    ) async {
       // Arrange
       when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([]));
 
@@ -107,7 +108,9 @@ void main() {
       expect(find.text('Agrega tu primera tarea'), findsOneWidget);
     });
 
-    testWidgets('should display error state when data loading fails', (WidgetTester tester) async {
+    testWidgets('should display error state when data loading fails', (
+      WidgetTester tester,
+    ) async {
       // Arrange
       when(mockGetTasks.call()).thenAnswer(
         (_) async => dartz.Left(DatabaseFailure(message: 'Database error')),
@@ -122,7 +125,9 @@ void main() {
       expect(find.text('Reintentar'), findsOneWidget);
     });
 
-    testWidgets('should show floating action button', (WidgetTester tester) async {
+    testWidgets('should show floating action button', (
+      WidgetTester tester,
+    ) async {
       // Arrange
       when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([]));
 
@@ -135,7 +140,9 @@ void main() {
       expect(find.text('Nueva Tarea'), findsOneWidget);
     });
 
-    testWidgets('should navigate to add task screen when FAB is tapped', (WidgetTester tester) async {
+    testWidgets('should navigate to add task screen when FAB is tapped', (
+      WidgetTester tester,
+    ) async {
       // Arrange
       when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([]));
 
@@ -149,9 +156,13 @@ void main() {
       expect(find.text('Nueva Tarea'), findsWidgets);
     });
 
-    testWidgets('should display statistics section', (WidgetTester tester) async {
+    testWidgets('should display statistics section', (
+      WidgetTester tester,
+    ) async {
       // Arrange
-      when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([testTask]));
+      when(
+        mockGetTasks.call(),
+      ).thenAnswer((_) async => dartz.Right([testTask]));
 
       // Act
       await tester.pumpWidget(createWidgetUnderTest());
@@ -164,7 +175,9 @@ void main() {
       expect(find.text('Pendientes'), findsOneWidget);
     });
 
-    testWidgets('should display search and filter section', (WidgetTester tester) async {
+    testWidgets('should display search and filter section', (
+      WidgetTester tester,
+    ) async {
       // Arrange
       when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([]));
 
@@ -177,7 +190,9 @@ void main() {
       expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
     });
 
-    testWidgets('should filter tasks by search query', (WidgetTester tester) async {
+    testWidgets('should filter tasks by search query', (
+      WidgetTester tester,
+    ) async {
       // Arrange
       final tasks = [
         testTask,
@@ -233,9 +248,13 @@ void main() {
       expect(find.text('Test Task'), findsNothing);
     });
 
-    testWidgets('should show menu with clear completed option', (WidgetTester tester) async {
+    testWidgets('should show menu with clear completed option', (
+      WidgetTester tester,
+    ) async {
       // Arrange
-      when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([testTask]));
+      when(
+        mockGetTasks.call(),
+      ).thenAnswer((_) async => dartz.Right([testTask]));
 
       // Act
       await tester.pumpWidget(createWidgetUnderTest());
@@ -248,9 +267,13 @@ void main() {
       expect(find.text('Limpiar Filtros'), findsOneWidget);
     });
 
-    testWidgets('should refresh when pull to refresh is triggered', (WidgetTester tester) async {
+    testWidgets('should refresh when pull to refresh is triggered', (
+      WidgetTester tester,
+    ) async {
       // Arrange
-      when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([testTask]));
+      when(
+        mockGetTasks.call(),
+      ).thenAnswer((_) async => dartz.Right([testTask]));
 
       // Act
       await tester.pumpWidget(createWidgetUnderTest());
@@ -264,7 +287,9 @@ void main() {
       verify(mockGetTasks.call()).called(greaterThan(1));
     });
 
-    testWidgets('should show header with title and actions', (WidgetTester tester) async {
+    testWidgets('should show header with title and actions', (
+      WidgetTester tester,
+    ) async {
       // Arrange
       when(mockGetTasks.call()).thenAnswer((_) async => dartz.Right([]));
 

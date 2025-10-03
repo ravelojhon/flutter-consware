@@ -24,21 +24,30 @@ void main() {
       await tester.pumpAndSettle();
 
       // Fill in task details
-      await tester.enterText(find.byType(TextFormField).first, 'Integration Test Task');
-      await tester.enterText(find.byType(TextFormField).last, 'This is a test task created during integration testing');
-      
+      await tester.enterText(
+        find.byType(TextFormField).first,
+        'Integration Test Task',
+      );
+      await tester.enterText(
+        find.byType(TextFormField).last,
+        'This is a test task created during integration testing',
+      );
+
       // Submit the form
       await tester.tap(find.text('Crear Tarea'));
       await tester.pumpAndSettle();
 
       // Verify task was created
       expect(find.text('Integration Test Task'), findsOneWidget);
-      expect(find.text('This is a test task created during integration testing'), findsOneWidget);
+      expect(
+        find.text('This is a test task created during integration testing'),
+        findsOneWidget,
+      );
 
       // Mark task as completed
       await tester.tap(find.byType(Checkbox));
       await tester.pumpAndSettle();
-      
+
       // Confirm completion
       await tester.tap(find.text('Completar'));
       await tester.pumpAndSettle();
@@ -49,7 +58,7 @@ void main() {
       // Delete the task
       await tester.tap(find.byIcon(Icons.delete));
       await tester.pumpAndSettle();
-      
+
       // Confirm deletion
       await tester.tap(find.text('Eliminar'));
       await tester.pumpAndSettle();
@@ -126,7 +135,7 @@ void main() {
       // Try to create task with empty title
       await tester.tap(find.byType(FloatingActionButton));
       await tester.pumpAndSettle();
-      
+
       await tester.tap(find.text('Crear Tarea'));
       await tester.pumpAndSettle();
 
@@ -144,9 +153,12 @@ Future<void> _createTestTasks(WidgetTester tester) async {
   // Create completed task
   await tester.tap(find.byType(FloatingActionButton));
   await tester.pumpAndSettle();
-  
+
   await tester.enterText(find.byType(TextFormField).first, 'Completed Task');
-  await tester.enterText(find.byType(TextFormField).last, 'This task will be completed');
+  await tester.enterText(
+    find.byType(TextFormField).last,
+    'This task will be completed',
+  );
   await tester.tap(find.byType(Switch)); // Mark as completed
   await tester.tap(find.text('Crear Tarea'));
   await tester.pumpAndSettle();
@@ -154,18 +166,24 @@ Future<void> _createTestTasks(WidgetTester tester) async {
   // Create pending task
   await tester.tap(find.byType(FloatingActionButton));
   await tester.pumpAndSettle();
-  
+
   await tester.enterText(find.byType(TextFormField).first, 'Pending Task');
-  await tester.enterText(find.byType(TextFormField).last, 'This task will remain pending');
+  await tester.enterText(
+    find.byType(TextFormField).last,
+    'This task will remain pending',
+  );
   await tester.tap(find.text('Crear Tarea'));
   await tester.pumpAndSettle();
 
   // Create search task
   await tester.tap(find.byType(FloatingActionButton));
   await tester.pumpAndSettle();
-  
+
   await tester.enterText(find.byType(TextFormField).first, 'Search Task');
-  await tester.enterText(find.byType(TextFormField).last, 'This task is for search testing');
+  await tester.enterText(
+    find.byType(TextFormField).last,
+    'This task is for search testing',
+  );
   await tester.tap(find.text('Crear Tarea'));
   await tester.pumpAndSettle();
 }
@@ -174,7 +192,7 @@ Future<void> _cleanupTestTasks(WidgetTester tester) async {
   // Delete all test tasks
   final deleteButtons = find.byIcon(Icons.delete);
   final deleteButtonCount = deleteButtons.evaluate().length;
-  
+
   for (int i = 0; i < deleteButtonCount; i++) {
     await tester.tap(deleteButtons.at(i));
     await tester.pumpAndSettle();

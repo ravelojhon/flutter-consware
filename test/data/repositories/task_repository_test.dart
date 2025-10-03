@@ -22,7 +22,7 @@ void main() {
         // This is a simple smoke test to ensure the repository can be instantiated
         // In a real test environment, we would use dependency injection
         // and mock the database properly
-        
+
         // For now, we'll just test that the class can be created
         expect(testTask, isA<Task>());
         expect(testTask.title, equals('Test Task'));
@@ -49,7 +49,10 @@ void main() {
 
         expect(updatedTask.title, equals('Updated Task'));
         expect(updatedTask.isCompleted, equals(true));
-        expect(updatedTask.description, equals('Test Description')); // Should remain unchanged
+        expect(
+          updatedTask.description,
+          equals('Test Description'),
+        ); // Should remain unchanged
         expect(updatedTask.id, equals(1)); // Should remain unchanged
       });
     });

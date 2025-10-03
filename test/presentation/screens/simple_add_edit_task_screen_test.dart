@@ -15,10 +15,7 @@ import 'package:app_consware/src/core/di/dependency_injection.dart';
 
 import 'simple_add_edit_task_screen_test.mocks.dart';
 
-@GenerateMocks([
-  AddTask,
-  UpdateTask,
-])
+@GenerateMocks([AddTask, UpdateTask])
 void main() {
   late MockAddTask mockAddTask;
   late MockUpdateTask mockUpdateTask;
@@ -43,9 +40,7 @@ void main() {
   Widget createWidgetUnderTest({Task? task}) {
     return ProviderScope(
       overrides: container.overrides,
-      child: MaterialApp(
-        home: SimpleAddEditTaskScreen(task: task),
-      ),
+      child: MaterialApp(home: SimpleAddEditTaskScreen(task: task)),
     );
   }
 
@@ -60,7 +55,9 @@ void main() {
     );
 
     group('Add Task Mode', () {
-      testWidgets('should display correct title for add mode', (WidgetTester tester) async {
+      testWidgets('should display correct title for add mode', (
+        WidgetTester tester,
+      ) async {
         // Act
         await tester.pumpWidget(createWidgetUnderTest());
         await tester.pumpAndSettle();
@@ -69,7 +66,9 @@ void main() {
         expect(find.text('Nueva Tarea'), findsOneWidget);
       });
 
-      testWidgets('should display empty form fields', (WidgetTester tester) async {
+      testWidgets('should display empty form fields', (
+        WidgetTester tester,
+      ) async {
         // Act
         await tester.pumpWidget(createWidgetUnderTest());
         await tester.pumpAndSettle();
@@ -77,7 +76,10 @@ void main() {
         // Assert
         expect(find.byType(TextFormField), findsNWidgets(2));
         expect(find.text('Ingresa el título de la tarea...'), findsOneWidget);
-        expect(find.text('Agrega una descripción detallada de la tarea...'), findsOneWidget);
+        expect(
+          find.text('Agrega una descripción detallada de la tarea...'),
+          findsOneWidget,
+        );
       });
 
       testWidgets('should show create button', (WidgetTester tester) async {
@@ -90,7 +92,9 @@ void main() {
         expect(find.byIcon(Icons.add), findsOneWidget);
       });
 
-      testWidgets('should validate required title field', (WidgetTester tester) async {
+      testWidgets('should validate required title field', (
+        WidgetTester tester,
+      ) async {
         // Act
         await tester.pumpWidget(createWidgetUnderTest());
         await tester.pumpAndSettle();
@@ -103,7 +107,9 @@ void main() {
     });
 
     group('Edit Task Mode', () {
-      testWidgets('should display correct title for edit mode', (WidgetTester tester) async {
+      testWidgets('should display correct title for edit mode', (
+        WidgetTester tester,
+      ) async {
         // Act
         await tester.pumpWidget(createWidgetUnderTest(task: testTask));
         await tester.pumpAndSettle();
@@ -112,7 +118,9 @@ void main() {
         expect(find.text('Editar Tarea'), findsOneWidget);
       });
 
-      testWidgets('should populate form fields with existing task data', (WidgetTester tester) async {
+      testWidgets('should populate form fields with existing task data', (
+        WidgetTester tester,
+      ) async {
         // Act
         await tester.pumpWidget(createWidgetUnderTest(task: testTask));
         await tester.pumpAndSettle();
@@ -134,7 +142,9 @@ void main() {
     });
 
     group('Form Validation', () {
-      testWidgets('should show character count for title field', (WidgetTester tester) async {
+      testWidgets('should show character count for title field', (
+        WidgetTester tester,
+      ) async {
         // Act
         await tester.pumpWidget(createWidgetUnderTest());
         await tester.pumpAndSettle();
@@ -145,18 +155,25 @@ void main() {
         expect(find.text('4/255 caracteres'), findsOneWidget);
       });
 
-      testWidgets('should show character count for description field', (WidgetTester tester) async {
+      testWidgets('should show character count for description field', (
+        WidgetTester tester,
+      ) async {
         // Act
         await tester.pumpWidget(createWidgetUnderTest());
         await tester.pumpAndSettle();
 
-        await tester.enterText(find.byType(TextFormField).last, 'Test Description');
+        await tester.enterText(
+          find.byType(TextFormField).last,
+          'Test Description',
+        );
 
         // Assert
         expect(find.text('15/500 caracteres'), findsOneWidget);
       });
 
-      testWidgets('should validate title length limit', (WidgetTester tester) async {
+      testWidgets('should validate title length limit', (
+        WidgetTester tester,
+      ) async {
         // Act
         await tester.pumpWidget(createWidgetUnderTest());
         await tester.pumpAndSettle();
@@ -169,7 +186,10 @@ void main() {
         await tester.pumpAndSettle();
 
         // Assert
-        expect(find.text('El título es demasiado largo (máximo 255 caracteres)'), findsOneWidget);
+        expect(
+          find.text('El título es demasiado largo (máximo 255 caracteres)'),
+          findsOneWidget,
+        );
       });
     });
 
@@ -184,7 +204,9 @@ void main() {
         expect(find.text('Esta tarea está pendiente'), findsOneWidget);
       });
 
-      testWidgets('should toggle completion switch', (WidgetTester tester) async {
+      testWidgets('should toggle completion switch', (
+        WidgetTester tester,
+      ) async {
         // Act
         await tester.pumpWidget(createWidgetUnderTest());
         await tester.pumpAndSettle();
@@ -196,7 +218,9 @@ void main() {
         expect(find.text('Esta tarea está completada'), findsOneWidget);
       });
 
-      testWidgets('should show correct completion status for existing task', (WidgetTester tester) async {
+      testWidgets('should show correct completion status for existing task', (
+        WidgetTester tester,
+      ) async {
         // Arrange
         final completedTask = testTask.copyWith(isCompleted: true);
 
