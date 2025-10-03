@@ -252,7 +252,7 @@ class ImprovedTaskItem extends ConsumerWidget {
   /// Mostrar confirmación para completar/descompletar tarea
   Future<void> _showCompletionConfirmation(BuildContext context) async {
     final bool newValue = !task.isCompleted;
-    
+
     final confirmed = await ConfirmationService.showCompleteConfirmation(
       context,
       title: newValue ? 'Completar Tarea' : 'Marcar como Pendiente',

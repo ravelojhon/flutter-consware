@@ -53,7 +53,7 @@ class ConfirmationService {
     return await _showConfirmationDialog(
       context,
       title: 'Limpiar Tareas Completadas',
-      message: count > 1 
+      message: count > 1
           ? '¿Estás seguro de que quieres eliminar las $count tareas completadas?'
           : '¿Estás seguro de que quieres eliminar la tarea completada?',
       itemType: 'tareas completadas',
@@ -72,7 +72,7 @@ class ConfirmationService {
     return await _showConfirmationDialog(
       context,
       title: 'Eliminar Todas las Tareas',
-      message: count > 1 
+      message: count > 1
           ? '¿Estás seguro de que quieres eliminar las $count tareas?'
           : '¿Estás seguro de que quieres eliminar la tarea?',
       itemType: 'todas las tareas',
@@ -84,9 +84,7 @@ class ConfirmationService {
   }
 
   /// Mostrar confirmación para resetear filtros
-  static Future<bool> showResetFiltersConfirmation(
-    BuildContext context,
-  ) async {
+  static Future<bool> showResetFiltersConfirmation(BuildContext context) async {
     return await _showConfirmationDialog(
       context,
       title: 'Limpiar Filtros',
@@ -125,8 +123,10 @@ class ConfirmationService {
           title: Row(
             children: [
               Icon(
-                confirmIcon ?? (isDestructive ? Icons.warning : Icons.help_outline),
-                color: confirmColor ?? (isDestructive ? Colors.red : Colors.blue),
+                confirmIcon ??
+                    (isDestructive ? Icons.warning : Icons.help_outline),
+                color:
+                    confirmColor ?? (isDestructive ? Colors.red : Colors.blue),
                 size: 24,
               ),
               const SizedBox(width: 12),
@@ -145,23 +145,22 @@ class ConfirmationService {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                message,
-                style: const TextStyle(fontSize: 16),
-              ),
-              
+              Text(message, style: const TextStyle(fontSize: 16)),
+
               if (itemName != null && itemName.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isDestructive 
+                    color: isDestructive
                         ? Colors.red.withOpacity(0.1)
                         : Colors.blue.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: (confirmColor ?? (isDestructive ? Colors.red : Colors.blue))
-                          .withOpacity(0.3),
+                      color:
+                          (confirmColor ??
+                                  (isDestructive ? Colors.red : Colors.blue))
+                              .withOpacity(0.3),
                     ),
                   ),
                   child: Column(
@@ -171,7 +170,9 @@ class ConfirmationService {
                         itemName,
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          color: confirmColor ?? (isDestructive ? Colors.red : Colors.blue),
+                          color:
+                              confirmColor ??
+                              (isDestructive ? Colors.red : Colors.blue),
                         ),
                       ),
                       if (itemType != null) ...[
@@ -189,16 +190,12 @@ class ConfirmationService {
                   ),
                 ),
               ],
-              
+
               if (warningMessage != null) ...[
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 16,
-                      color: Colors.grey[600],
-                    ),
+                    Icon(Icons.info_outline, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -229,7 +226,8 @@ class ConfirmationService {
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: ElevatedButton.styleFrom(
-                backgroundColor: confirmColor ?? (isDestructive ? Colors.red : Colors.blue),
+                backgroundColor:
+                    confirmColor ?? (isDestructive ? Colors.red : Colors.blue),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -241,9 +239,7 @@ class ConfirmationService {
               ),
               child: Text(
                 confirmText,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -263,25 +259,20 @@ class ConfirmationService {
     String cancelText = 'No',
   }) async {
     bool? result;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
             Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(color: Colors.white),
-              ),
+              child: Text(message, style: const TextStyle(color: Colors.white)),
             ),
           ],
         ),
         backgroundColor: Colors.grey[800],
         duration: duration,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.all(16),
         action: SnackBarAction(
           label: confirmText,

@@ -260,10 +260,10 @@ class TaskListNotifier extends AsyncNotifier<List<Task>> {
   void _handleError(dynamic error, {String? context}) {
     final userMessage = ErrorMapper.mapToUserMessage(error);
     final isRecoverable = ErrorMapper.isRecoverable(error);
-    
+
     // Log del error para debugging (en producción usar un logger real)
     print('Error${context != null ? ' en $context' : ''}: $error');
-    
+
     // Actualizar el estado con el error mapeado
     state = AsyncValue.error(Exception(userMessage), StackTrace.current);
   }

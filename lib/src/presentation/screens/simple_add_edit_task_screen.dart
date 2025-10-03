@@ -14,10 +14,12 @@ class SimpleAddEditTaskScreen extends ConsumerStatefulWidget {
   const SimpleAddEditTaskScreen({super.key, this.task});
 
   @override
-  ConsumerState<SimpleAddEditTaskScreen> createState() => _SimpleAddEditTaskScreenState();
+  ConsumerState<SimpleAddEditTaskScreen> createState() =>
+      _SimpleAddEditTaskScreenState();
 }
 
-class _SimpleAddEditTaskScreenState extends ConsumerState<SimpleAddEditTaskScreen> {
+class _SimpleAddEditTaskScreenState
+    extends ConsumerState<SimpleAddEditTaskScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -99,10 +101,11 @@ class _SimpleAddEditTaskScreenState extends ConsumerState<SimpleAddEditTaskScree
                             const SizedBox(width: 12),
                             Text(
                               _isEditing ? 'Editar Tarea' : 'Crear Nueva Tarea',
-                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).primaryColor,
-                              ),
+                              style: Theme.of(context).textTheme.headlineSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).primaryColor,
+                                  ),
                             ),
                           ],
                         ),
@@ -142,9 +145,9 @@ class _SimpleAddEditTaskScreenState extends ConsumerState<SimpleAddEditTaskScree
       children: [
         Text(
           'Título *',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         TextFormField(
@@ -153,9 +156,7 @@ class _SimpleAddEditTaskScreenState extends ConsumerState<SimpleAddEditTaskScree
           decoration: InputDecoration(
             hintText: 'Ingresa el título de la tarea...',
             prefixIcon: const Icon(Icons.title),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide(
@@ -179,9 +180,9 @@ class _SimpleAddEditTaskScreenState extends ConsumerState<SimpleAddEditTaskScree
       children: [
         Text(
           'Descripción',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         TextFormField(
@@ -190,9 +191,7 @@ class _SimpleAddEditTaskScreenState extends ConsumerState<SimpleAddEditTaskScree
           decoration: InputDecoration(
             hintText: 'Agrega una descripción detallada (opcional)...',
             prefixIcon: const Icon(Icons.description),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide(
@@ -241,21 +240,20 @@ class _SimpleAddEditTaskScreenState extends ConsumerState<SimpleAddEditTaskScree
                 ),
                 Text(
                   _isCompleted ? 'Completada' : 'Pendiente',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
               ],
             ),
           ),
           Switch(
             value: _isCompleted,
-            onChanged: _isLoading ? null : (value) {
-              setState(() {
-                _isCompleted = value;
-              });
-            },
+            onChanged: _isLoading
+                ? null
+                : (value) {
+                    setState(() {
+                      _isCompleted = value;
+                    });
+                  },
             activeColor: Colors.green,
             inactiveThumbColor: Colors.orange,
           ),
@@ -271,10 +269,12 @@ class _SimpleAddEditTaskScreenState extends ConsumerState<SimpleAddEditTaskScree
       children: [
         // Botón principal (Crear/Actualizar)
         ElevatedButton.icon(
-          onPressed: _isLoading ? null : () {
-            HapticFeedback.lightImpact();
-            _handleSubmit();
-          },
+          onPressed: _isLoading
+              ? null
+              : () {
+                  HapticFeedback.lightImpact();
+                  _handleSubmit();
+                },
           icon: _isLoading
               ? const SizedBox(
                   width: 20,
@@ -286,8 +286,8 @@ class _SimpleAddEditTaskScreenState extends ConsumerState<SimpleAddEditTaskScree
                 )
               : Icon(_isEditing ? Icons.update : Icons.add),
           label: Text(
-            _isLoading 
-                ? 'Procesando...' 
+            _isLoading
+                ? 'Procesando...'
                 : (_isEditing ? 'Actualizar Tarea' : 'Crear Tarea'),
           ),
           style: ElevatedButton.styleFrom(
@@ -356,13 +356,15 @@ class _SimpleAddEditTaskScreenState extends ConsumerState<SimpleAddEditTaskScree
           await ref.read(taskListProvider.notifier).updateTask(updatedTask);
         } else {
           // Crear nueva tarea
-          await ref.read(taskListProvider.notifier).addTask(
-            title: _titleController.text.trim(),
-            description: _descriptionController.text.trim().isEmpty
-                ? null
-                : _descriptionController.text.trim(),
-            isCompleted: _isCompleted,
-          );
+          await ref
+              .read(taskListProvider.notifier)
+              .addTask(
+                title: _titleController.text.trim(),
+                description: _descriptionController.text.trim().isEmpty
+                    ? null
+                    : _descriptionController.text.trim(),
+                isCompleted: _isCompleted,
+              );
         }
 
         if (mounted) {
@@ -371,7 +373,10 @@ class _SimpleAddEditTaskScreenState extends ConsumerState<SimpleAddEditTaskScree
         }
       } catch (e) {
         if (mounted) {
-          _showErrorModal('Error al ${_isEditing ? 'actualizar' : 'crear'} la tarea', e.toString());
+          _showErrorModal(
+            'Error al ${_isEditing ? 'actualizar' : 'crear'} la tarea',
+            e.toString(),
+          );
         }
       } finally {
         if (mounted) {
@@ -413,14 +418,12 @@ class _SimpleAddEditTaskScreenState extends ConsumerState<SimpleAddEditTaskScree
                         color: Colors.red,
                       ),
                     ),
-                    if (widget.task!.description != null && widget.task!.description!.isNotEmpty) ...[
+                    if (widget.task!.description != null &&
+                        widget.task!.description!.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
                         widget.task!.description!,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.red[600],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.red[600]),
                       ),
                     ],
                   ],
@@ -429,10 +432,7 @@ class _SimpleAddEditTaskScreenState extends ConsumerState<SimpleAddEditTaskScree
               const SizedBox(height: 8),
               const Text(
                 'Esta acción no se puede deshacer.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ],
           ),
@@ -489,25 +489,20 @@ class _SimpleAddEditTaskScreenState extends ConsumerState<SimpleAddEditTaskScree
             const Icon(Icons.check_circle, color: Colors.white),
             const SizedBox(width: 8),
             Text(
-              message ?? 'Tarea ${_isEditing ? 'actualizada' : 'creada'} exitosamente',
+              message ??
+                  'Tarea ${_isEditing ? 'actualizada' : 'creada'} exitosamente',
             ),
           ],
         ),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
 
   /// Mostrar modal de error
   void _showErrorModal(String title, String message) {
-    ErrorModal.show(
-      context,
-      title: title,
-      message: message,
-    );
+    ErrorModal.show(context, title: title, message: message);
   }
 }

@@ -9,15 +9,15 @@ class ErrorMapper {
     if (error is Failure) {
       return _mapFailureToMessage(error);
     }
-    
+
     if (error is Exception) {
       return _mapExceptionToMessage(error);
     }
-    
+
     if (error is String) {
       return error;
     }
-    
+
     // Error genérico para casos no manejados
     return 'Ha ocurrido un error inesperado. Por favor, inténtalo de nuevo.';
   }
@@ -38,8 +38,8 @@ class ErrorMapper {
       case TimeoutFailure:
         return 'La operación tardó demasiado. Inténtalo de nuevo.';
       default:
-        return failure.message.isNotEmpty 
-            ? failure.message 
+        return failure.message.isNotEmpty
+            ? failure.message
             : 'Ha ocurrido un error inesperado.';
     }
   }
@@ -47,31 +47,31 @@ class ErrorMapper {
   /// Mapear excepciones comunes a mensajes amigables
   static String _mapExceptionToMessage(Exception exception) {
     final message = exception.toString().toLowerCase();
-    
+
     if (message.contains('database') || message.contains('sqlite')) {
       return 'Error de base de datos. Los datos podrían estar corruptos.';
     }
-    
+
     if (message.contains('network') || message.contains('connection')) {
       return 'Error de conexión. Verifica tu conexión a internet.';
     }
-    
+
     if (message.contains('timeout')) {
       return 'La operación tardó demasiado. Inténtalo de nuevo.';
     }
-    
+
     if (message.contains('permission') || message.contains('access')) {
       return 'No tienes permisos para realizar esta acción.';
     }
-    
+
     if (message.contains('not found') || message.contains('no existe')) {
       return 'El elemento solicitado no existe.';
     }
-    
+
     if (message.contains('already exists') || message.contains('ya existe')) {
       return 'Este elemento ya existe.';
     }
-    
+
     // Mensaje genérico para excepciones no reconocidas
     return 'Ha ocurrido un error inesperado. Por favor, inténtalo de nuevo.';
   }
@@ -95,7 +95,7 @@ class ErrorMapper {
           return Icons.error_outline;
       }
     }
-    
+
     final message = error.toString().toLowerCase();
     if (message.contains('network') || message.contains('connection')) {
       return Icons.wifi_off;
@@ -106,7 +106,7 @@ class ErrorMapper {
     if (message.contains('timeout')) {
       return Icons.timer_off;
     }
-    
+
     return Icons.error_outline;
   }
 
@@ -121,24 +121,26 @@ class ErrorMapper {
     if (error is DatabaseFailure || error is ServerFailure) {
       return Colors.red;
     }
-    
+
     return Colors.red;
   }
 
   /// Determinar si el error es recuperable (si el usuario puede reintentar)
   static bool isRecoverable(dynamic error) {
-    if (error is NetworkFailure || error is TimeoutFailure || error is ServerFailure) {
+    if (error is NetworkFailure ||
+        error is TimeoutFailure ||
+        error is ServerFailure) {
       return true; // Errores de red son recuperables
     }
-    
+
     if (error is ValidationFailure) {
       return true; // Errores de validación son recuperables
     }
-    
+
     if (error is DatabaseFailure || error is CacheFailure) {
       return false; // Errores de base de datos pueden no ser recuperables
     }
-    
+
     // Para errores desconocidos, asumir que son recuperables
     return true;
   }

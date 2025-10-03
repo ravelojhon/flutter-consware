@@ -40,15 +40,11 @@ class AppErrorWidget extends StatelessWidget {
                 color: errorColor.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                errorIcon,
-                size: 48,
-                color: errorColor,
-              ),
+              child: Icon(errorIcon, size: 48, color: errorColor),
             ),
             const SizedBox(height: 16),
           ],
-          
+
           Text(
             title ?? 'Algo salió mal',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -57,17 +53,17 @@ class AppErrorWidget extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           Text(
             subtitle ?? errorMessage,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey[600],
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),
-          
+
           if (isRecoverable && showRetryButton && onRetry != null) ...[
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -116,33 +112,20 @@ class CompactErrorWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: errorColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: errorColor.withOpacity(0.3),
-          width: 1,
-        ),
+        border: Border.all(color: errorColor.withOpacity(0.3), width: 1),
       ),
       child: Row(
         children: [
-          Icon(
-            errorIcon,
-            color: errorColor,
-            size: 24,
-          ),
+          Icon(errorIcon, color: errorColor, size: 24),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               errorMessage,
-              style: TextStyle(
-                color: errorColor,
-                fontWeight: FontWeight.w500,
-              ),
+              style: TextStyle(color: errorColor, fontWeight: FontWeight.w500),
             ),
           ),
           if (isRecoverable && onRetry != null)
-            TextButton(
-              onPressed: onRetry,
-              child: const Text('Reintentar'),
-            ),
+            TextButton(onPressed: onRetry, child: const Text('Reintentar')),
         ],
       ),
     );
@@ -173,21 +156,14 @@ class CardErrorWidget extends StatelessWidget {
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: errorColor.withOpacity(0.3),
-          width: 1,
-        ),
+        side: BorderSide(color: errorColor.withOpacity(0.3), width: 1),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              errorIcon,
-              color: errorColor,
-              size: 32,
-            ),
+            Icon(errorIcon, color: errorColor, size: 32),
             const SizedBox(height: 12),
             Text(
               title ?? 'Error',
@@ -200,9 +176,9 @@ class CardErrorWidget extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               errorMessage,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[600],
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
               textAlign: TextAlign.center,
             ),
             if (isRecoverable && onRetry != null) ...[

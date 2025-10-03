@@ -98,7 +98,8 @@ class FeedbackService {
   }
 
   /// Mostrar SnackBar personalizado
-  static ScaffoldFeatureController<SnackBar, SnackBarClosedReason> _showSnackBar(
+  static ScaffoldFeatureController<SnackBar, SnackBarClosedReason>
+  _showSnackBar(
     BuildContext context, {
     required String message,
     required Color backgroundColor,
@@ -115,11 +116,7 @@ class FeedbackService {
       SnackBar(
         content: Row(
           children: [
-            Icon(
-              icon,
-              color: Colors.white,
-              size: 20,
-            ),
+            Icon(icon, color: Colors.white, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -147,9 +144,7 @@ class FeedbackService {
         backgroundColor: backgroundColor,
         duration: duration,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.all(16),
         action: onAction != null && actionLabel != null
             ? SnackBarAction(
@@ -192,7 +187,7 @@ class FeedbackService {
     }
 
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -202,19 +197,14 @@ class FeedbackService {
             const SizedBox(width: 8),
             Text(
               message,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: Colors.white, fontSize: 12),
             ),
           ],
         ),
         backgroundColor: backgroundColor,
         duration: duration,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         margin: const EdgeInsets.only(
           left: 16,
           right: 16,
@@ -227,9 +217,4 @@ class FeedbackService {
 }
 
 /// Tipos de Toast disponibles
-enum ToastType {
-  success,
-  error,
-  warning,
-  info,
-}
+enum ToastType { success, error, warning, info }

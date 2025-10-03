@@ -3,27 +3,17 @@ import 'package:flutter/material.dart';
 /// Widgets para mostrar estados de carga de manera consistente
 class LoadingWidgets {
   /// Indicador de carga simple
-  static Widget simple({
-    String? message,
-    Color? color,
-    double size = 24.0,
-  }) {
+  static Widget simple({String? message, Color? color, double size = 24.0}) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircularProgressIndicator(
-            color: color,
-            strokeWidth: 2.5,
-          ),
+          CircularProgressIndicator(color: color, strokeWidth: 2.5),
           if (message != null) ...[
             const SizedBox(height: 16),
             Text(
               message,
-              style: TextStyle(
-                color: color ?? Colors.grey[600],
-                fontSize: 14,
-              ),
+              style: TextStyle(color: color ?? Colors.grey[600], fontSize: 14),
               textAlign: TextAlign.center,
             ),
           ],
@@ -41,18 +31,13 @@ class LoadingWidgets {
   }) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: padding ?? const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(
-              color: color,
-              strokeWidth: 2.5,
-            ),
+            CircularProgressIndicator(color: color, strokeWidth: 2.5),
             if (title != null) ...[
               const SizedBox(height: 16),
               Text(
@@ -68,10 +53,7 @@ class LoadingWidgets {
               const SizedBox(height: 8),
               Text(
                 message,
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -82,10 +64,7 @@ class LoadingWidgets {
   }
 
   /// Indicador de carga compacto para listas
-  static Widget compact({
-    String? message,
-    Color? color,
-  }) {
+  static Widget compact({String? message, Color? color}) {
     return Container(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -93,10 +72,7 @@ class LoadingWidgets {
           SizedBox(
             width: 20,
             height: 20,
-            child: CircularProgressIndicator(
-              color: color,
-              strokeWidth: 2,
-            ),
+            child: CircularProgressIndicator(color: color, strokeWidth: 2),
           ),
           if (message != null) ...[
             const SizedBox(width: 12),
@@ -116,10 +92,7 @@ class LoadingWidgets {
   }
 
   /// Indicador de carga con skeleton
-  static Widget skeleton({
-    int itemCount = 3,
-    double itemHeight = 80,
-  }) {
+  static Widget skeleton({int itemCount = 3, double itemHeight = 80}) {
     return Column(
       children: List.generate(
         itemCount,
@@ -130,9 +103,7 @@ class LoadingWidgets {
             color: Colors.grey[300],
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Center(
-            child: CircularProgressIndicator(),
-          ),
+          child: const Center(child: CircularProgressIndicator()),
         ),
       ),
     );
@@ -219,12 +190,7 @@ class ListLoadingWidget extends StatelessWidget {
   final Color? color;
   final EdgeInsetsGeometry? padding;
 
-  const ListLoadingWidget({
-    super.key,
-    this.message,
-    this.color,
-    this.padding,
-  });
+  const ListLoadingWidget({super.key, this.message, this.color, this.padding});
 
   @override
   Widget build(BuildContext context) {

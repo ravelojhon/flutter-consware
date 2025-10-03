@@ -38,7 +38,19 @@ jobs:
       run: dart format --output=none --set-exit-if-changed .
       
     - name: Analyze project source
-      run: flutter analyze
+      run: flutter analyze --fatal-infos
+      
+    - name: Check for unused imports
+      run: dart fix --dry-run
+      
+    - name: Run custom validation script
+      run: |
+        if [ -f "scripts/pre-push-validation.sh" ]; then
+          chmod +x scripts/pre-push-validation.sh
+          bash scripts/pre-push-validation.sh
+        else
+          echo "Custom validation script not found, skipping..."
+        fi
       
     - name: Run tests
       run: flutter test --coverage

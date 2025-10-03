@@ -187,25 +187,26 @@ LazyDatabase _openConnection() {
 
       // Crear la conexión
       final database = NativeDatabase.createInBackground(file);
-      
+
       return database;
     } catch (e) {
       // Si falla la conexión, intentar recrear la base de datos
       try {
         final dbFolder = await getApplicationDocumentsDirectory();
         final file = File(p.join(dbFolder.path, 'todo_database.db'));
-        
+
         // Eliminar archivo corrupto si existe
         if (await file.exists()) {
           await file.delete();
         }
-        
+
         // Crear nueva base de datos
         return NativeDatabase.createInBackground(file);
       } catch (recreateError) {
         // Si todo falla, lanzar un error descriptivo
         throw DatabaseFailure(
-          message: 'No se pudo inicializar la base de datos: ${recreateError.toString()}',
+          message:
+              'No se pudo inicializar la base de datos: ${recreateError.toString()}',
         );
       }
     }

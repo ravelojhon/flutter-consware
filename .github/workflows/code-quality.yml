@@ -1,0 +1,125 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+        cache: true
+        
+    - name: Install dependencies
+      run: flutter pub get
+      
+    - name: Generate mocks
+      run: dart run build_runner build --delete-conflicting-outputs
+      
+    - name: Code Formatting Check
+      run: |
+        echo "🔧 Verificando formateo de código..."
+        dart format --output=none --set-exit-if-changed .
+        echo "✅ Código correctamente formateado"
+        
+    - name: Static Analysis
+      run: |
+        echo "🔍 Ejecutando análisis estático..."
+        flutter analyze --fatal-infos --fatal-warnings
+        echo "✅ Análisis estático completado sin errores"
+        
+    - name: Unused Imports Check
+      run: |
+        echo "🧹 Verificando imports no utilizados..."
+        dart fix --dry-run || echo "⚠️ Se encontraron imports no utilizados"
+        
+    - name: Code Complexity Analysis
+      run: |
+        echo "📊 Analizando complejidad del código..."
+        find lib -name "*.dart" -exec wc -l {} + | sort -n
+        echo "✅ Análisis de complejidad completado"
+        
+    - name: Dependency Analysis
+      run: |
+        echo "📦 Analizando dependencias..."
+        flutter pub deps --style=tree
+        echo "✅ Análisis de dependencias completado"
+        
+    - name: Security Check
+      run: |
+        echo "🔒 Verificando seguridad..."
+        # Verificar que no hay imports de dart:io en código web
+        if find lib -name "*.dart" -exec grep -l "dart:io" {} \; | grep -v "platform"; then
+          echo "⚠️ Se encontraron imports de dart:io en código web"
+        fi
+        echo "✅ Verificación de seguridad completada"
+        
+    - name: Documentation Check
+      run: |
+        echo "📚 Verificando documentación..."
+        # Verificar que las clases públicas tienen documentación
+        find lib -name "*.dart" -exec grep -l "class.*{" {} \; | while read file; do
+          if ! grep -q "@override\|@deprecated\|@internal" "$file"; then
+            echo "⚠️ Archivo $file puede necesitar documentación"
+          fi
+        done
+        echo "✅ Verificación de documentación completada"
+        
+    - name: Performance Check
+      run: |
+        echo "⚡ Verificando optimizaciones de rendimiento..."
+        # Verificar uso de const constructors
+        find lib -name "*.dart" -exec grep -l "Widget\|StatelessWidget\|StatefulWidget" {} \; | while read file; do
+          if grep -q "new " "$file"; then
+            echo "⚠️ Archivo $file usa 'new' en lugar de const"
+          fi
+        done
+        echo "✅ Verificación de rendimiento completada"
+        
+    - name: Generate Quality Report
+      run: |
+        echo "📋 Generando reporte de calidad..."
+        echo "# Reporte de Calidad de Código" > quality-report.md
+        echo "" >> quality-report.md
+        echo "## Análisis Estático" >> quality-report.md
+        flutter analyze >> quality-report.md 2>&1 || true
+        echo "" >> quality-report.md
+        echo "## Dependencias" >> quality-report.md
+        flutter pub deps --style=tree >> quality-report.md 2>&1 || true
+        echo "✅ Reporte de calidad generado"
+        
+    - name: Upload Quality Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: quality-report
+        path: quality-report.md
+        
+    - name: Comment PR with Quality Results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          try {
+            const report = fs.readFileSync('quality-report.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 📊 Reporte de Calidad de Código\n\n\`\`\`\n${report}\n\`\`\``
+            });
+          } catch (error) {
+            console.log('Error creating comment:', error);
+          }

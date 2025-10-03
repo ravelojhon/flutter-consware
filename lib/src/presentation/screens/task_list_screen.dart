@@ -65,14 +65,12 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
         children: [
           // Widget para agregar nueva tarea
           _buildAddTaskWidget(),
-          
+
           // Widget de estadísticas
           _buildStatsWidget(),
-          
+
           // Lista de tareas
-          Expanded(
-            child: _buildTaskList(),
-          ),
+          Expanded(child: _buildTaskList()),
         ],
       ),
     );
@@ -95,10 +93,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: _addTask,
-            child: const Text('Agregar'),
-          ),
+          ElevatedButton(onPressed: _addTask, child: const Text('Agregar')),
         ],
       ),
     );
@@ -120,7 +115,10 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
                 _buildStatItem('Total', stats.total.toString()),
                 _buildStatItem('Completadas', stats.completed.toString()),
                 _buildStatItem('Pendientes', stats.pending.toString()),
-                _buildStatItem('Progreso', '${stats.completionPercentage.toStringAsFixed(1)}%'),
+                _buildStatItem(
+                  'Progreso',
+                  '${stats.completionPercentage.toStringAsFixed(1)}%',
+                ),
               ],
             ),
           ),
@@ -139,9 +137,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
         final errorMessage = ref.watch(errorMessageProvider);
 
         if (isLoading) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
 
         if (hasError) {
@@ -213,12 +209,8 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
               },
             );
           },
-          loading: () => const Center(
-            child: CircularProgressIndicator(),
-          ),
-          error: (error, stackTrace) => Center(
-            child: Text('Error: $error'),
-          ),
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stackTrace) => Center(child: Text('Error: $error')),
         );
       },
     );
@@ -261,7 +253,9 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
                 color: task.isCompleted ? Colors.orange : Colors.green,
               ),
               onPressed: () {
-                ref.read(taskListProvider.notifier).toggleTaskCompletion(task.id);
+                ref
+                    .read(taskListProvider.notifier)
+                    .toggleTaskCompletion(task.id);
               },
             ),
             IconButton(
@@ -281,15 +275,9 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
       children: [
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12)),
       ],
     );
   }
@@ -353,7 +341,9 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
               ref.read(taskListProvider.notifier).toggleTaskCompletion(task.id);
               Navigator.of(context).pop();
             },
-            child: Text(task.isCompleted ? 'Marcar Pendiente' : 'Marcar Completada'),
+            child: Text(
+              task.isCompleted ? 'Marcar Pendiente' : 'Marcar Completada',
+            ),
           ),
         ],
       ),
