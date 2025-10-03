@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
@@ -6,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
 
 import '../../domain/entities/task.dart';
+import '../../core/errors/failures.dart';
 import 'todo_tables.dart';
 import 'task_mapper.dart';
 
@@ -159,23 +162,52 @@ class TodoDatabase extends _$TodoDatabase {
   );
 }
 
-/// Abrir conexión a la base de datos
+/// Abrir conexión a la base de datos con manejo de errores
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
-    // Asegurar que las bibliotecas SQLite estén disponibles
-    if (Platform.isAndroid) {
-      await applyWorkaroundToOpenSqlite3OnOldAndroidVersions();
+    try {
+      // Asegurar que las bibliotecas SQLite estén disponibles
+      if (Platform.isAndroid) {
+        await applyWorkaroundToOpenSqlite3OnOldAndroidVersions();
+      }
+
+      // Obtener el directorio de documentos de la aplicación
+      final dbFolder = await getApplicationDocumentsDirectory();
+      final file = File(p.join(dbFolder.path, 'todo_database.db'));
+
+      // Verificar permisos de escritura
+      if (!await dbFolder.exists()) {
+        await dbFolder.create(recursive: true);
+      }
+
+      // Crear la base de datos si no existe
+      if (!await file.exists()) {
+        await file.create(recursive: true);
+      }
+
+      // Crear la conexión
+      final database = NativeDatabase.createInBackground(file);
+      
+      return database;
+    } catch (e) {
+      // Si falla la conexión, intentar recrear la base de datos
+      try {
+        final dbFolder = await getApplicationDocumentsDirectory();
+        final file = File(p.join(dbFolder.path, 'todo_database.db'));
+        
+        // Eliminar archivo corrupto si existe
+        if (await file.exists()) {
+          await file.delete();
+        }
+        
+        // Crear nueva base de datos
+        return NativeDatabase.createInBackground(file);
+      } catch (recreateError) {
+        // Si todo falla, lanzar un error descriptivo
+        throw DatabaseFailure(
+          message: 'No se pudo inicializar la base de datos: ${recreateError.toString()}',
+        );
+      }
     }
-
-    // Obtener el directorio de documentos de la aplicación
-    final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'todo_database.db'));
-
-    // Crear la base de datos si no existe
-    if (!await file.exists()) {
-      await file.create(recursive: true);
-    }
-
-    return NativeDatabase.createInBackground(file);
   });
 }

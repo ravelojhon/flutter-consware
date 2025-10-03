@@ -65,6 +65,16 @@ class PermissionFailure extends Failure {
   });
 }
 
+/// Error de base de datos
+class DatabaseFailure extends Failure {
+  const DatabaseFailure({required super.message, super.code, super.stackTrace});
+}
+
+/// Error de timeout
+class TimeoutFailure extends Failure {
+  const TimeoutFailure({required super.message, super.code, super.stackTrace});
+}
+
 /// Error genérico no clasificado
 class UnknownFailure extends Failure {
   const UnknownFailure({required super.message, super.code, super.stackTrace});

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/task.dart';
+import '../../core/ui/confirmation_service.dart';
 
 /// Widget mejorado para mostrar un elemento individual de tarea
 /// Incluye descripción, mejor diseño y confirmación para completar
@@ -251,160 +252,31 @@ class ImprovedTaskItem extends ConsumerWidget {
   /// Mostrar confirmación para completar/descompletar tarea
   Future<void> _showCompletionConfirmation(BuildContext context) async {
     final bool newValue = !task.isCompleted;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                newValue ? Icons.check_circle : Icons.pending,
-                color: newValue ? Colors.green : Colors.orange,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  newValue ? 'Completar' : 'Pendiente',
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                newValue
-                    ? '¿Estás seguro de que quieres marcar esta tarea como completada?'
-                    : '¿Estás seguro de que quieres marcar esta tarea como pendiente?',
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: newValue ? Colors.green[50] : Colors.orange[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: newValue ? Colors.green[200]! : Colors.orange[200]!,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      task.title,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    if (task.description != null &&
-                        task.description!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        task.description!,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: newValue ? Colors.green : Colors.orange,
-                foregroundColor: Colors.white,
-              ),
-              child: Text(newValue ? 'Completar' : 'Marcar Pendiente'),
-            ),
-          ],
-        );
-      },
+    
+    final confirmed = await ConfirmationService.showCompleteConfirmation(
+      context,
+      title: newValue ? 'Completar Tarea' : 'Marcar como Pendiente',
+      message: newValue
+          ? '¿Estás seguro de que quieres marcar esta tarea como completada?'
+          : '¿Estás seguro de que quieres marcar esta tarea como pendiente?',
+      itemName: task.title,
+      isCompleting: newValue,
     );
 
-    if (confirmed == true) {
+    if (confirmed) {
       onToggleCompleted?.call(newValue);
     }
   }
 
   /// Mostrar confirmación de eliminación
   Future<bool> _showDeleteConfirmation(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.delete, color: Colors.red),
-              SizedBox(width: 8),
-              Text('Eliminar Tarea'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('¿Estás seguro de que quieres eliminar esta tarea?'),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red[200]!),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      task.title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.red,
-                      ),
-                    ),
-                    if (task.description != null &&
-                        task.description!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        task.description!,
-                        style: TextStyle(fontSize: 12, color: Colors.red[600]),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Esta acción no se puede deshacer.',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Eliminar'),
-            ),
-          ],
-        );
-      },
+    return await ConfirmationService.showDeleteConfirmation(
+      context,
+      title: 'Eliminar Tarea',
+      message: '¿Estás seguro de que quieres eliminar esta tarea?',
+      itemName: task.title,
+      itemType: 'tarea',
     );
-
-    return confirmed ?? false;
   }
 
   /// Formatear fecha para mostrar

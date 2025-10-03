@@ -6,6 +6,10 @@ import '../providers/task_list_notifier.dart';
 import '../../domain/entities/task.dart';
 import '../widgets/improved_task_item.dart';
 import '../widgets/error_modal.dart';
+import '../../core/ui/feedback_service.dart';
+import '../../core/ui/confirmation_service.dart';
+import '../../core/ui/error_widget.dart';
+import '../../core/ui/loading_widgets.dart';
 import 'simple_add_edit_task_screen.dart';
 
 /// Pantalla mejorada para mostrar la lista de tareas
@@ -165,32 +169,41 @@ class _ImprovedTaskListScreenState
   }
 
   /// Mostrar diálogo para limpiar tareas completadas
-  void _showClearCompletedDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Limpiar Tareas Completadas'),
-          content: const Text(
-            '¿Estás seguro de que quieres eliminar todas las tareas completadas?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                ref.read(taskListProvider.notifier).deleteCompletedTasks();
-              },
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Limpiar'),
-            ),
-          ],
-        );
-      },
+  Future<void> _showClearCompletedDialog() async {
+    final taskListState = ref.read(taskListProvider);
+    final completedCount = taskListState.when(
+      data: (tasks) => tasks.where((t) => t.isCompleted).length,
+      loading: () => 0,
+      error: (_, __) => 0,
     );
+
+    if (completedCount == 0) {
+      FeedbackService.showInfo(
+        context,
+        message: 'No hay tareas completadas para eliminar.',
+      );
+      return;
+    }
+
+    final confirmed = await ConfirmationService.showClearCompletedConfirmation(
+      context,
+      count: completedCount,
+    );
+
+    if (confirmed) {
+      try {
+        await ref.read(taskListProvider.notifier).deleteCompletedTasks();
+        FeedbackService.showSuccess(
+          context,
+          message: 'Se eliminaron $completedCount tareas completadas.',
+        );
+      } catch (e) {
+        FeedbackService.showError(
+          context,
+          message: 'No se pudieron eliminar las tareas completadas.',
+        );
+      }
+    }
   }
 
   /// Resetear filtros
@@ -853,36 +866,10 @@ class _ImprovedTaskListScreenState
   Widget _buildErrorWidget(Object error) {
     return Container(
       height: 300, // Altura fija para evitar overflow
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 60, color: Colors.red[400]),
-            const SizedBox(height: 12),
-            Text(
-              'Error al cargar las tareas',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(color: Colors.red[600]),
-            ),
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(
-                error.toString(),
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () => ref.read(taskListProvider.notifier).refresh(),
-              child: const Text('Reintentar'),
-            ),
-          ],
-        ),
+      child: AppErrorWidget(
+        error: error,
+        title: 'Error al cargar las tareas',
+        onRetry: () => ref.read(taskListProvider.notifier).refresh(),
       ),
     );
   }
@@ -970,14 +957,17 @@ class _ImprovedTaskListScreenState
   }
 
   /// Eliminar una tarea
-  void _deleteTask(Task task) {
+  Future<void> _deleteTask(Task task) async {
     try {
-      ref.read(taskListProvider.notifier).deleteTask(task.id);
-    } catch (e) {
-      ErrorModal.show(
+      await ref.read(taskListProvider.notifier).deleteTask(task.id);
+      FeedbackService.showSuccess(
         context,
-        title: 'Error al eliminar tarea',
-        message: 'No se pudo eliminar la tarea: ${e.toString()}',
+        message: 'Tarea "${task.title}" eliminada correctamente.',
+      );
+    } catch (e) {
+      FeedbackService.showError(
+        context,
+        message: 'No se pudo eliminar la tarea.',
       );
     }
   }
