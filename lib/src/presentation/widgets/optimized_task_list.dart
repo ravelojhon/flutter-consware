@@ -9,9 +9,9 @@ import 'optimized_task_item.dart';
 class OptimizedTaskList extends ConsumerWidget {
   final List<Task> tasks;
   final VoidCallback? onRefresh;
-  final Function(Task)? onTaskTap;
-  final Function(Task)? onToggleCompletion;
-  final Function(Task)? onDeleteTask;
+  final void Function(Task)? onTaskTap;
+  final void Function(Task)? onToggleCompletion;
+  final void Function(Task)? onDeleteTask;
   final bool isLoading;
 
   const OptimizedTaskList({

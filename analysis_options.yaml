@@ -93,7 +93,6 @@ linter:
     avoid_type_to_string: true
     avoid_types_as_parameter_names: true
     avoid_types_on_closure_parameters: true
-    avoid_unused_imports: true
     avoid_void_async: true
     cancel_subscriptions: true
     close_sinks: true
@@ -117,7 +116,6 @@ linter:
     prefer_adjacent_string_concatenation: true
     prefer_asserts_in_initializer_lists: true
     prefer_asserts_with_message: true
-    prefer_asserts: true
     prefer_collection_literals: true
     prefer_conditional_assignment: true
     prefer_contains: true

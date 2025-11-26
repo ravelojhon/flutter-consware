@@ -77,7 +77,7 @@ class OptimizedTaskListScreen extends ConsumerWidget {
 
   /// Mostrar diálogo para limpiar tareas completadas
   void _showClearCompletedDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(

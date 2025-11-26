@@ -100,7 +100,6 @@ class TaskListScreen extends ConsumerWidget {
     return Consumer(
       builder: (context, ref, child) {
         final stats = ref.watch(taskStatsProvider);
-        final isLoading = ref.watch(isLoadingProvider);
 
         return Container(
           margin: const EdgeInsets.all(16),
@@ -242,7 +241,6 @@ class TaskListScreen extends ConsumerWidget {
     return Consumer(
       builder: (context, ref, child) {
         final taskListState = ref.watch(taskListProvider);
-        final isLoading = ref.watch(isLoadingProvider);
 
         return taskListState.when(
           data: (tasks) {

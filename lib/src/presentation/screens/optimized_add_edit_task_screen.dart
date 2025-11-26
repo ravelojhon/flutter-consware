@@ -110,7 +110,7 @@ class _OptimizedAddEditTaskScreenState
 
   /// Mostrar confirmación de eliminación
   void _showDeleteConfirmation(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(

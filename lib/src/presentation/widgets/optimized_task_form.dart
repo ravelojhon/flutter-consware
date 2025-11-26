@@ -7,7 +7,7 @@ import '../../domain/entities/task.dart';
 /// Implementa buenas prácticas de performance
 class OptimizedTaskForm extends ConsumerStatefulWidget {
   final Task? task;
-  final Function(String title, bool isCompleted) onSubmit;
+  final void Function(String title, bool isCompleted) onSubmit;
   final bool isLoading;
 
   const OptimizedTaskForm({

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'src/domain/entities/task.dart';
-import 'src/presentation/screens/improved_task_list_screen.dart';
-import 'src/presentation/screens/simple_add_edit_task_screen.dart';
+import 'src/presentation/screens/formularios_screen.dart';
+import 'src/presentation/screens/recibos_screen.dart';
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
@@ -15,7 +14,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Task Manager',
+      title: 'App Consware',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
@@ -47,23 +46,39 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      initialRoute: '/',
+      home: const FormulariosScreen(),
       routes: {
-        '/': (context) => const ImprovedTaskListScreen(),
-        '/add-edit-task': (context) {
-          final args = ModalRoute.of(context)?.settings.arguments;
-          return SimpleAddEditTaskScreen(task: args is Task ? args : null);
-        },
+        '/recibos': (context) => const RecibosScreen(),
       },
       onGenerateRoute: (settings) {
-        if (settings.name == '/add-edit-task') {
-          final args = settings.arguments;
-          return MaterialPageRoute(
-            builder: (context) =>
-                SimpleAddEditTaskScreen(task: args is Task ? args : null),
-          );
+        // Animación personalizada para navegación entre formularios
+        switch (settings.name) {
+          case '/recibos':
+            return PageRouteBuilder<void>(
+              settings: settings,
+              pageBuilder: (context, animation, secondaryAnimation) => const RecibosScreen(),
+              transitionDuration: const Duration(milliseconds: 400),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                const begin = Offset(1.0, 0.0);
+                const end = Offset.zero;
+                const curve = Curves.easeInOutCubic;
+
+                var tween = Tween(begin: begin, end: end).chain(
+                  CurveTween(curve: curve),
+                );
+
+                return SlideTransition(
+                  position: animation.drive(tween),
+                  child: FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  ),
+                );
+              },
+            );
+          default:
+            return null;
         }
-        return null;
       },
       debugShowCheckedModeBanner: false,
     );

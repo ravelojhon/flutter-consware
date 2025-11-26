@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'failures.dart';
+import 'server_exception.dart';
 
 /// Mapeador de errores que convierte excepciones técnicas en mensajes amigables para el usuario
 class ErrorMapper {
@@ -143,5 +144,34 @@ class ErrorMapper {
 
     // Para errores desconocidos, asumir que son recuperables
     return true;
+  }
+
+  /// Mapear excepciones a Failure
+  static Failure mapExceptionToFailure(dynamic exception) {
+    if (exception is ServerException) {
+      if (exception.statusCode != null) {
+        if (exception.statusCode == 404) {
+          return NotFoundFailure(message: exception.message);
+        } else if (exception.statusCode! >= 500) {
+          return ServerFailure(message: exception.message);
+        } else if (exception.statusCode! >= 400) {
+          return ValidationFailure(message: exception.message);
+        }
+      }
+      return ServerFailure(message: exception.message);
+    }
+
+    final message = exception.toString().toLowerCase();
+    if (message.contains('network') ||
+        message.contains('connection') ||
+        message.contains('socket')) {
+      return NetworkFailure(message: exception.toString());
+    }
+
+    if (message.contains('timeout')) {
+      return TimeoutFailure(message: exception.toString());
+    }
+
+    return ServerFailure(message: exception.toString());
   }
 }

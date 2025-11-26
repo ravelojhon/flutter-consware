@@ -9,7 +9,6 @@ import '../widgets/error_modal.dart';
 import '../../core/ui/feedback_service.dart';
 import '../../core/ui/confirmation_service.dart';
 import '../../core/ui/error_widget.dart';
-import '../../core/ui/loading_widgets.dart';
 import 'simple_add_edit_task_screen.dart';
 
 /// Pantalla mejorada para mostrar la lista de tareas
@@ -213,159 +212,6 @@ class _ImprovedTaskListScreenState
       _searchQuery = '';
       _searchController.clear();
     });
-  }
-
-  /// Construir sección de búsqueda y filtros como Sliver
-  Widget _buildSearchAndFiltersSliver() {
-    return SliverToBoxAdapter(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            // Campo de búsqueda
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Buscar tareas...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {
-                            _searchQuery = '';
-                          });
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.grey[100],
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
-            ),
-            const SizedBox(height: 12),
-            // Filtros con dropdown
-            Row(
-              children: [
-                const Icon(Icons.filter_list, size: 20, color: Colors.grey),
-                const SizedBox(width: 8),
-                const Text(
-                  'Filtrar por estado:',
-                  style: TextStyle(fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _filterStatus,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'all',
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.list, size: 16),
-                            SizedBox(width: 8),
-                            Text('Todas'),
-                          ],
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: 'completed',
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.check_circle,
-                              size: 16,
-                              color: Colors.green,
-                            ),
-                            SizedBox(width: 8),
-                            Text('Completadas'),
-                          ],
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: 'pending',
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.pending, size: 16, color: Colors.orange),
-                            SizedBox(width: 8),
-                            Text('Pendientes'),
-                          ],
-                        ),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      HapticFeedback.lightImpact();
-                      setState(() {
-                        _filterStatus = value ?? 'all';
-                      });
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Construir sección de estadísticas como Sliver
-  Widget _buildStatsSliver(AsyncValue<List<Task>> taskListState) {
-    return SliverToBoxAdapter(
-      child: Container(
-        margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(colors: [Colors.white, Colors.grey[50]!]),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: taskListState.when(
-          data: (tasks) => _buildStatsContent(tasks),
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stack) => _buildErrorWidget(error),
-        ),
-      ),
-    );
   }
 
   /// Construir sección fija de estadísticas
@@ -627,133 +473,6 @@ class _ImprovedTaskListScreenState
     );
   }
 
-  /// Construir sección de búsqueda y filtros
-  Widget _buildSearchAndFiltersSection() {
-    return SliverToBoxAdapter(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            // Campo de búsqueda
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Buscar tareas...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {
-                            _searchQuery = '';
-                          });
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.grey[100],
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
-            ),
-            const SizedBox(height: 12),
-            // Filtros con dropdown
-            Row(
-              children: [
-                const Icon(Icons.filter_list, size: 20, color: Colors.grey),
-                const SizedBox(width: 8),
-                const Text(
-                  'Filtrar por estado:',
-                  style: TextStyle(fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _filterStatus,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'all',
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.list, size: 16),
-                            SizedBox(width: 8),
-                            Text('Todas'),
-                          ],
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: 'completed',
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.check_circle,
-                              size: 16,
-                              color: Colors.green,
-                            ),
-                            SizedBox(width: 8),
-                            Text('Completadas'),
-                          ],
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: 'pending',
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.pending, size: 16, color: Colors.orange),
-                            SizedBox(width: 8),
-                            Text('Pendientes'),
-                          ],
-                        ),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      HapticFeedback.lightImpact();
-                      setState(() {
-                        _filterStatus = value ?? 'all';
-                      });
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   /// Construir lista de tareas
   Widget _buildTaskList(AsyncValue<List<Task>> taskListState) {
     return taskListState.when(
@@ -924,9 +643,9 @@ class _ImprovedTaskListScreenState
     HapticFeedback.lightImpact();
     // Perder el focus del campo de búsqueda antes de navegar
     FocusScope.of(context).unfocus();
-    Navigator.push(
+    Navigator.push<void>(
       context,
-      MaterialPageRoute(builder: (context) => const SimpleAddEditTaskScreen()),
+      MaterialPageRoute<void>(builder: (context) => const SimpleAddEditTaskScreen()),
     );
   }
 
@@ -935,9 +654,9 @@ class _ImprovedTaskListScreenState
     HapticFeedback.lightImpact();
     // Perder el focus del campo de búsqueda antes de navegar
     FocusScope.of(context).unfocus();
-    Navigator.push(
+    Navigator.push<void>(
       context,
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (context) => SimpleAddEditTaskScreen(task: task),
       ),
     );

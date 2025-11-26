@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../domain/entities/task.dart';
 import 'task_providers.dart';
 
 /// Ejemplo de uso de los providers de tareas

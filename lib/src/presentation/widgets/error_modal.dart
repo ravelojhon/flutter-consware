@@ -128,7 +128,7 @@ class ErrorModal extends StatelessWidget {
     VoidCallback? onRetry,
     String? retryText,
   }) {
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: true,
       builder: (context) => ErrorModal(

@@ -286,7 +286,7 @@ class ConfirmationService {
     );
 
     // Esperar a que se oculte el SnackBar
-    await Future.delayed(duration);
+    await Future<void>.delayed(duration);
     return result ?? false;
   }
 }

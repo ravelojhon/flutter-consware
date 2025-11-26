@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/errors/failures.dart';
 import '../../core/errors/error_mapper.dart';
-import '../../core/ui/feedback_service.dart';
 import '../../domain/entities/task.dart';
 import '../../core/di/dependency_injection.dart';
 
@@ -256,25 +255,6 @@ class TaskListNotifier extends AsyncNotifier<List<Task>> {
     return Exception(ErrorMapper.mapToUserMessage(failure));
   }
 
-  /// Manejar errores de manera consistente
-  void _handleError(dynamic error, {String? context}) {
-    final userMessage = ErrorMapper.mapToUserMessage(error);
-    final isRecoverable = ErrorMapper.isRecoverable(error);
-
-    // Log del error para debugging (en producción usar un logger real)
-    print('Error${context != null ? ' en $context' : ''}: $error');
-
-    // Actualizar el estado con el error mapeado
-    state = AsyncValue.error(Exception(userMessage), StackTrace.current);
-  }
-
-  /// Manejar éxito de operaciones
-  void _handleSuccess(String message, {bool showFeedback = true}) {
-    if (showFeedback) {
-      // Aquí podrías mostrar un SnackBar de éxito si tienes acceso al contexto
-      print('Success: $message');
-    }
-  }
 }
 
 /// Estadísticas de tareas
@@ -300,6 +280,17 @@ class TaskStats {
 
   /// Verificar si no hay tareas pendientes
   bool get noPending => pending == 0;
+
+  /// Crear estadísticas desde una lista de tareas
+  factory TaskStats.fromTasks(List<Task> tasks) {
+    final completed = tasks.where((task) => task.isCompleted).length;
+    final pending = tasks.length - completed;
+    return TaskStats(
+      total: tasks.length,
+      completed: completed,
+      pending: pending,
+    );
+  }
 
   @override
   String toString() {

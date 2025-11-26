@@ -58,19 +58,6 @@ class TaskMapper {
     String? title,
     bool? isCompleted,
   }) {
-    final updates = <String, Value>{};
-
-    if (title != null) {
-      updates['title'] = Value(title);
-    }
-
-    if (isCompleted != null) {
-      updates['isCompleted'] = Value(isCompleted);
-    }
-
-    // Siempre actualizar el timestamp
-    updates['updatedAt'] = Value(DateTime.now());
-
     return TasksCompanion(
       id: Value(id),
       title: title != null ? Value(title) : const Value.absent(),

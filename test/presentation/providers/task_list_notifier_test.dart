@@ -104,10 +104,10 @@ void main() {
       test('should handle error during refresh', () async {
         // Arrange
         when(mockGetTasks.call())
-            .thenAnswer((_) async => dartz.Right([testTask]))
+            .thenAnswer((_) async => dartz.Right<List<Task>, Failure>([testTask]))
             .thenAnswer(
               (_) async =>
-                  dartz.Left(DatabaseFailure(message: 'Database error')),
+                  dartz.Left<List<Task>, Failure>(DatabaseFailure(message: 'Database error')),
             );
         final notifier = container.read(taskListProvider.notifier);
 

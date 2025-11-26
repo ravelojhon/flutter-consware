@@ -293,7 +293,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
 
   /// Método para mostrar confirmación de eliminación
   void _showDeleteConfirmation(Task task) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Eliminar Tarea'),
@@ -317,7 +317,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen> {
 
   /// Método para mostrar detalles de la tarea
   void _showTaskDetails(Task task) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(task.title),
