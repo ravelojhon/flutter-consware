@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/company_notifier.dart';
+import 'en_desarrollo_screen.dart';
+import 'recibos_screen.dart';
+import 'viaticos_screen.dart';
+
 /// Pantalla de formularios con estado vacío y drawer de navegación
 class FormulariosScreen extends ConsumerStatefulWidget {
   const FormulariosScreen({super.key});
@@ -16,30 +21,66 @@ class _FormulariosScreenState extends ConsumerState<FormulariosScreen>
   
   // Estado para rastrear selección
   String? _selectedMetricCard;
-  int? _selectedBarIndex;
-  String? _selectedPeriod;
-  int? _selectedClienteIndex;
   String? _selectedFormaPago;
-  int? _selectedConceptoIndex;
   
-  // Controladores de animación
-  late AnimationController _chartAnimationController;
-
+  // Estado para filtros
+  DateTimeRange? _selectedDateRange;
+  String? _selectedConductor;
+  final TextEditingController _conductorSearchController = TextEditingController();
+  
+  // Lista simulada de conductores con identificación
+  final Map<String, String> _conductores = {
+    'Juan Pérez': '12345678',
+    'María García': '87654321',
+    'Carlos Rodríguez': '11223344',
+    'Ana Martínez': '44332211',
+    'Luis Hernández': '55667788',
+    'Laura López': '88776655',
+    'Pedro Sánchez': '99887766',
+    'Carmen González': '66778899',
+    'José Ramírez': '22334455',
+    'Isabel Torres': '55443322',
+  };
+  
+  List<String> _filteredConductores = [];
+  
   @override
   void initState() {
     super.initState();
-    _chartAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
-    _chartAnimationController.forward();
+    _filteredConductores = List<String>.from(_conductores.keys);
+    _conductorSearchController.addListener(_filterConductores);
+    
+    // Cargar compañías al ingresar al dashboard para que estén listas cuando se abra el formulario
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(companyListNotifierProvider.notifier).refresh();
+    });
   }
-
+  
   @override
   void dispose() {
-    _chartAnimationController.dispose();
+    _conductorSearchController.removeListener(_filterConductores);
+    _conductorSearchController.dispose();
     super.dispose();
   }
+  
+  void _filterConductores() {
+    final query = _conductorSearchController.text.toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        _filteredConductores = List<String>.from(_conductores.keys);
+      } else {
+        _filteredConductores = _conductores.keys
+            .where((conductor) => 
+                conductor.toLowerCase().contains(query) ||
+                (_conductores[conductor] ?? '').toLowerCase().contains(query))
+            .toList();
+      }
+    });
+  }
+  
+  String? get _selectedConductorId => _selectedConductor != null 
+      ? _conductores[_selectedConductor] 
+      : null;
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +104,7 @@ class _FormulariosScreenState extends ConsumerState<FormulariosScreen>
           tooltip: 'Menú',
         ),
         title: const Text(
-          'Formularios',
+          'Dashboard',
           style: TextStyle(
             color: Colors.white,
             fontSize: 20,
@@ -71,22 +112,6 @@ class _FormulariosScreenState extends ConsumerState<FormulariosScreen>
           ),
         ),
         centerTitle: true,
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 8.0),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.white, width: 1.5),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.search, color: Colors.white, size: 20),
-              onPressed: () {
-                // TODO: Implementar búsqueda
-              },
-              tooltip: 'Buscar',
-            ),
-          ),
-        ],
       ),
       body: _buildDashboard(context),
     );
@@ -148,28 +173,20 @@ class _FormulariosScreenState extends ConsumerState<FormulariosScreen>
             ),
             const SizedBox(height: 24),
             
+            // Sección de filtros
+            _buildFilterSection(),
+            const SizedBox(height: 24),
+            
+            // Accesos directos
+            _buildQuickAccess(),
+            const SizedBox(height: 24),
+            
             // Tarjetas de métricas principales
             _buildMetricsCards(dashboardData),
             const SizedBox(height: 24),
             
-            // Gráfico de tendencias
-            _buildTrendChart(dashboardData),
-            const SizedBox(height: 24),
-            
-            // Análisis por período
-            _buildPeriodAnalysis(dashboardData),
-            const SizedBox(height: 24),
-            
-            // Top clientes
-            _buildTopClientes(dashboardData),
-            const SizedBox(height: 24),
-            
             // Análisis de formas de pago
             _buildFormasPagoAnalysis(dashboardData),
-            const SizedBox(height: 24),
-            
-            // Resumen de conceptos
-            _buildConceptosSummary(dashboardData),
             const SizedBox(height: 100),
           ],
         ),
@@ -217,58 +234,39 @@ class _FormulariosScreenState extends ConsumerState<FormulariosScreen>
 
   /// Construir tarjetas de métricas principales
   Widget _buildMetricsCards(Map<String, dynamic> data) {
-    return Column(
+    return Row(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildMetricCard(
-                key: 'totalRecibos',
-                title: 'Total Recibos',
-                value: '${data['totalRecibos']}',
-                icon: Icons.receipt_long,
-                color: Colors.blue,
-                subtitle: 'Este mes',
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildMetricCard(
-                key: 'totalIngresos',
-                title: 'Total Ingresos',
-                value: _formatCurrency(data['totalIngresos'] as double),
-                icon: Icons.attach_money,
-                color: Colors.green,
-                subtitle: 'Este mes',
-              ),
-            ),
-          ],
+        Expanded(
+          child: _buildMetricCard(
+            key: 'totalRecibos',
+            title: 'Total Recibos',
+            value: '${data['totalRecibos']}',
+            icon: Icons.receipt_long,
+            color: Colors.blue,
+            subtitle: 'Este mes',
+          ),
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildMetricCard(
-                key: 'promedioRecibo',
-                title: 'Promedio por Recibo',
-                value: _formatCurrency(data['promedioRecibo'] as double),
-                icon: Icons.trending_up,
-                color: Colors.orange,
-                subtitle: 'Promedio mensual',
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildMetricCard(
-                key: 'recibosHoy',
-                title: 'Recibos Hoy',
-                value: '${data['recibosHoy']}',
-                icon: Icons.today,
-                color: Colors.purple,
-                subtitle: _formatCurrency(data['ingresosHoy'] as double),
-              ),
-            ),
-          ],
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildMetricCard(
+            key: 'totalIngresos',
+            title: 'Total Ingresos',
+            value: _formatCurrency(data['totalIngresos'] as double),
+            icon: Icons.attach_money,
+            color: Colors.green,
+            subtitle: 'Este mes',
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildMetricCard(
+            key: 'recibosHoy',
+            title: 'Hoy',
+            value: '${data['recibosHoy']}',
+            icon: Icons.today,
+            color: Colors.purple,
+            subtitle: _formatCurrency(data['ingresosHoy'] as double),
+          ),
         ),
       ],
     );
@@ -303,11 +301,7 @@ class _FormulariosScreenState extends ConsumerState<FormulariosScreen>
                 } else {
                   _selectedMetricCard = key;
                   // Deseleccionar otros elementos
-                  _selectedBarIndex = null;
-                  _selectedPeriod = null;
-                  _selectedClienteIndex = null;
                   _selectedFormaPago = null;
-                  _selectedConceptoIndex = null;
                 }
               });
             },
@@ -327,9 +321,9 @@ class _FormulariosScreenState extends ConsumerState<FormulariosScreen>
                           : BorderSide.none,
                     ),
                     child: Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(12),
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
@@ -341,46 +335,52 @@ class _FormulariosScreenState extends ConsumerState<FormulariosScreen>
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(10),
+                                padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
                                   color: color.withOpacity(isSelected ? 0.3 : 0.2),
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Icon(icon, color: color, size: 24),
+                                child: Icon(icon, color: color, size: 16),
                               ),
-                              Icon(Icons.more_vert, color: Colors.grey[400], size: 20),
                             ],
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 8),
                           Text(
                             title,
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 11,
                               color: Colors.grey[600],
                               fontWeight: FontWeight.w500,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
                             value,
                             style: TextStyle(
-                              fontSize: 22,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: color,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
                             subtitle,
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 10,
                               color: Colors.grey[500],
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
@@ -395,451 +395,436 @@ class _FormulariosScreenState extends ConsumerState<FormulariosScreen>
     );
   }
 
-  /// Construir gráfico de tendencias
-  Widget _buildTrendChart(Map<String, dynamic> data) {
-    final tendencia = data['tendenciaSemanal'] as List;
-    final maxValue = tendencia.map((e) => e['valor'] as double).reduce((a, b) => a > b ? a : b);
-    
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Tendencia Semanal',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.green[50],
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.trending_up, size: 16, color: Colors.green[700]),
-                      const SizedBox(width: 4),
-                      Text(
-                        '+12.5%',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green[700],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            AnimatedBuilder(
-              animation: _chartAnimationController,
-              builder: (context, child) {
-                return SizedBox(
-                  height: 200,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: tendencia.asMap().entries.map<Widget>((entry) {
-                      final index = entry.key;
-                      final item = entry.value;
-                      final valor = item['valor'] as double;
-                      final dia = item['dia'] as String;
-                      final isSelected = _selectedBarIndex == index;
-                      final isAnySelected = _selectedBarIndex != null;
-                      final opacity = isSelected ? 1.0 : (isAnySelected ? 0.3 : 1.0);
-                      final scale = isSelected ? 1.1 : 1.0;
-                      
-                      // Animación de altura
-                      final animatedHeight = ((valor / maxValue) * 180) * _chartAnimationController.value;
-                      
-                      return Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              if (_selectedBarIndex == index) {
-                                _selectedBarIndex = null;
-                              } else {
-                                _selectedBarIndex = index;
-                                // Deseleccionar otros elementos
-                                _selectedMetricCard = null;
-                                _selectedPeriod = null;
-                                _selectedClienteIndex = null;
-                                _selectedFormaPago = null;
-                                _selectedConceptoIndex = null;
-                              }
-                            });
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                            child: Opacity(
-                              opacity: opacity,
-                              child: Transform.scale(
-                                scale: scale,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.end,
-                                    children: [
-                                      Tooltip(
-                                        message: '$dia: ${_formatCurrency(valor)}',
-                                        child: Container(
-                                          width: double.infinity,
-                                          height: animatedHeight,
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              begin: Alignment.bottomCenter,
-                                              end: Alignment.topCenter,
-                                              colors: isSelected
-                                                  ? [
-                                                      Colors.blue[600]!,
-                                                      Colors.blue[400]!,
-                                                    ]
-                                                  : [
-                                                      Colors.blue[400]!,
-                                                      Colors.blue[200]!,
-                                                    ],
-                                            ),
-                                            borderRadius: const BorderRadius.only(
-                                              topLeft: Radius.circular(8),
-                                              topRight: Radius.circular(8),
-                                            ),
-                                            boxShadow: isSelected
-                                                ? [
-                                                    BoxShadow(
-                                                      color: Colors.blue.withOpacity(0.5),
-                                                      blurRadius: 8,
-                                                      offset: const Offset(0, -2),
-                                                    ),
-                                                  ]
-                                                : null,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        dia,
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: isSelected ? Colors.blue[700] : Colors.grey[600],
-                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
+  /// Construir sección de filtros
+  /// Formatear fecha en formato corto (ej: "4 nov")
+  String _formatShortDate(DateTime date) {
+    final months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 
+                    'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    return '${date.day} ${months[date.month - 1]}';
   }
 
-  /// Construir análisis por período
-  Widget _buildPeriodAnalysis(Map<String, dynamic> data) {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Análisis por Período',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-            _buildPeriodRow('Hoy', 8500000.0, 12, Colors.blue),
-            const SizedBox(height: 12),
-            _buildPeriodRow('Esta Semana', 89000000.0, 98, Colors.green),
-            const SizedBox(height: 12),
-            _buildPeriodRow('Este Mes', 125000000.0, 156, Colors.orange),
-            const SizedBox(height: 12),
-            _buildPeriodRow('Este Año', 1450000000.0, 1845, Colors.purple),
-          ],
-        ),
-      ),
-    );
+  /// Formatear rango de fechas (ej: "4 nov - 20 nov")
+  String _formatDateRange(DateTimeRange range) {
+    final startFormatted = _formatShortDate(range.start);
+    final endFormatted = _formatShortDate(range.end);
+    return '$startFormatted - $endFormatted';
   }
 
-  /// Construir fila de período
-  Widget _buildPeriodRow(String periodo, double total, int recibos, Color color) {
-    final isSelected = _selectedPeriod == periodo;
-    final isAnySelected = _selectedPeriod != null;
-    final opacity = isSelected ? 1.0 : (isAnySelected ? 0.4 : 1.0);
-    
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          if (_selectedPeriod == periodo) {
-            _selectedPeriod = null;
-          } else {
-            _selectedPeriod = periodo;
-            // Deseleccionar otros elementos
-            _selectedMetricCard = null;
-            _selectedBarIndex = null;
-            _selectedClienteIndex = null;
-            _selectedFormaPago = null;
-            _selectedConceptoIndex = null;
-          }
-        });
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color.withOpacity(isSelected ? 0.15 : 0.05),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? color : color.withOpacity(0.2),
-            width: isSelected ? 2 : 1,
+  Widget _buildFilterSection() {
+    int? daysCount;
+    int? selectedYear;
+    if (_selectedDateRange != null) {
+      daysCount = _selectedDateRange!.end.difference(_selectedDateRange!.start).inDays + 1;
+      selectedYear = _selectedDateRange!.start.year;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-        ),
-        child: Opacity(
-          opacity: opacity,
-          child: Row(
-            children: [
-              Container(
-                width: 4,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      periodo,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$recibos recibos',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    _formatCurrency(total),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Icon(Icons.filter_list, size: 18, color: Colors.grey[600]),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Espacio para el año (siempre presente para mantener alineación)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4, left: 4),
+                  child: Text(
+                    selectedYear != null ? '$selectedYear' : ' ',
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: color,
+                      fontSize: 11,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                      height: 1.0,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                ),
+                InkWell(
+                  onTap: _selectDateRange,
+                  child: Container(
+                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.grey[300]!),
                     ),
-                    child: Text(
-                      '${((total / 125000000.0) * 100).toStringAsFixed(1)}%',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: color,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Construir top clientes
-  Widget _buildTopClientes(Map<String, dynamic> data) {
-    final topClientes = data['topClientes'] as List;
-    
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Top 5 Clientes',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text('Ver todos'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ...List.generate(topClientes.length, (index) {
-              final cliente = topClientes[index];
-              final total = cliente['total'] as double;
-              final recibos = cliente['recibos'] as int;
-              final nombre = cliente['nombre'] as String;
-              final maxTotal = (topClientes[0]['total'] as double);
-              final porcentaje = (total / maxTotal) * 100;
-              final isSelected = _selectedClienteIndex == index;
-              final isAnySelected = _selectedClienteIndex != null;
-              final opacity = isSelected ? 1.0 : (isAnySelected ? 0.4 : 1.0);
-              
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    if (_selectedClienteIndex == index) {
-                      _selectedClienteIndex = null;
-                    } else {
-                      _selectedClienteIndex = index;
-                      // Deseleccionar otros elementos
-                      _selectedMetricCard = null;
-                      _selectedBarIndex = null;
-                      _selectedPeriod = null;
-                      _selectedFormaPago = null;
-                      _selectedConceptoIndex = null;
-                    }
-                  });
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  padding: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: isSelected ? _getRankColor(index).withOpacity(0.1) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                    border: isSelected
-                        ? Border.all(color: _getRankColor(index), width: 2)
-                        : null,
-                  ),
-                  child: Opacity(
-                    opacity: opacity,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: _getRankColor(index).withOpacity(isSelected ? 0.3 : 0.2),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '${index + 1}',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: _getRankColor(index),
-                                  ),
-                                ),
-                              ),
+                        Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _selectedDateRange == null
+                                ? 'Rango de fechas'
+                                : _formatDateRange(_selectedDateRange!),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: _selectedDateRange == null ? Colors.grey[500] : Colors.grey[800],
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    nombre,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '$recibos recibos',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Text(
-                              _formatCurrency(total),
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: isSelected ? _getRankColor(index) : Colors.green,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: porcentaje / 100,
-                            minHeight: isSelected ? 8 : 6,
-                            backgroundColor: Colors.grey[200],
-                            valueColor: AlwaysStoppedAnimation<Color>(_getRankColor(index)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        if (_selectedDateRange != null)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 4),
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _selectedDateRange = null;
+                                });
+                              },
+                              child: Icon(Icons.clear, size: 16, color: Colors.grey[400]),
+                            ),
+                          ),
                       ],
                     ),
                   ),
                 ),
-              );
-            }),
+                if (daysCount != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, left: 4),
+                    child: Text(
+                      daysCount == 1 
+                          ? '1 día seleccionado'
+                          : '$daysCount días seleccionados',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ),
+                // Espacio adicional si no hay días para mantener alineación
+                if (daysCount == null)
+                  const SizedBox(height: 18),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Espacio vacío para alineación con el año
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4, left: 4),
+                  child: Text(
+                    ' ',
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.0,
+                    ),
+                  ),
+                ),
+                InkWell(
+                  onTap: () => _showConductorSelector(context),
+                  child: Container(
+                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.person, size: 16, color: Colors.grey[600]),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _selectedConductor ?? 'Todos los conductores',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: _selectedConductor == null ? Colors.grey[500] : Colors.grey[800],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey[600]),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_selectedConductorId != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, left: 4),
+                    child: Text(
+                      'ID: ${_selectedConductorId}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ),
+                // Espacio adicional si no hay ID para mantener alineación
+                if (_selectedConductorId == null)
+                  const SizedBox(height: 18),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// Seleccionar rango de fechas
+  Future<void> _selectDateRange() async {
+    final DateTimeRange? picked = await showModalBottomSheet<DateTimeRange?>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => _DateRangePickerBottomSheet(
+        initialDateRange: _selectedDateRange,
+      ),
+    );
+    
+    if (picked != null && picked != _selectedDateRange) {
+      setState(() {
+        _selectedDateRange = picked;
+      });
+    }
+  }
+  
+  /// Mostrar selector de conductor con búsqueda
+  void _showConductorSelector(BuildContext context) {
+    _conductorSearchController.clear();
+    _filteredConductores = _conductores.keys.toList();
+    
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Seleccionar Conductor',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _conductorSearchController,
+              decoration: InputDecoration(
+                hintText: 'Buscar conductor...',
+                prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                filled: true,
+                fillColor: Colors.grey[50],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.blue, width: 2),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              onChanged: (value) {
+                _filterConductores();
+              },
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView(
+                children: [
+                  ListTile(
+                    leading: Icon(Icons.people, color: Colors.blue),
+                    title: Text('Todos los conductores'),
+                    onTap: () {
+                      setState(() {
+                        _selectedConductor = null;
+                      });
+                      Navigator.pop(context);
+                    },
+                    selected: _selectedConductor == null,
+                  ),
+                  Divider(),
+                  ..._filteredConductores.map((conductor) {
+                    final id = _conductores[conductor];
+                    return ListTile(
+                      leading: Icon(Icons.person, color: Colors.grey[600]),
+                      title: Text(conductor),
+                      subtitle: id != null 
+                          ? Text('ID: $id', style: TextStyle(fontSize: 12, color: Colors.grey[600]))
+                          : null,
+                      onTap: () {
+                        setState(() {
+                          _selectedConductor = conductor;
+                        });
+                        Navigator.pop(context);
+                      },
+                      selected: _selectedConductor == conductor,
+                    );
+                  }),
+                ],
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+  
+  /// Construir accesos directos
+  Widget _buildQuickAccess() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildQuickAccessCard(
+            title: 'Recibos',
+            subtitle: 'Gestionar recibos de caja',
+            icon: Icons.receipt_long,
+            color: Colors.blue,
+            onTap: () {
+              Navigator.push<void>(
+                context,
+                MaterialPageRoute<void>(builder: (context) => const RecibosScreen()),
+              );
+            },
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _buildQuickAccessCard(
+            title: 'Viaticos',
+            subtitle: 'Gestionar viáticos',
+            icon: Icons.card_travel,
+            color: Colors.orange,
+            onTap: () {
+              Navigator.push<void>(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (context) => const ViaticosScreen(),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+  
+  /// Construir tarjeta de acceso directo
+  Widget _buildQuickAccessCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+    bool showDevelopmentBadge = false,
+  }) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                color.withOpacity(0.08),
+                color.withOpacity(0.03),
+              ],
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[800],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey[400]),
+            ],
+          ),
         ),
       ),
     );
@@ -882,15 +867,11 @@ class _FormulariosScreenState extends ConsumerState<FormulariosScreen>
                   setState(() {
                     if (_selectedFormaPago == tipo) {
                       _selectedFormaPago = null;
-                    } else {
-                      _selectedFormaPago = tipo;
-                      // Deseleccionar otros elementos
-                      _selectedMetricCard = null;
-                      _selectedBarIndex = null;
-                      _selectedPeriod = null;
-                      _selectedClienteIndex = null;
-                      _selectedConceptoIndex = null;
-                    }
+                  } else {
+                    _selectedFormaPago = tipo;
+                    // Deseleccionar otros elementos
+                    _selectedMetricCard = null;
+                  }
                   });
                 },
                 child: AnimatedContainer(
@@ -978,166 +959,6 @@ class _FormulariosScreenState extends ConsumerState<FormulariosScreen>
     );
   }
 
-  /// Construir resumen de conceptos
-  Widget _buildConceptosSummary(Map<String, dynamic> data) {
-    final conceptos = data['conceptos'] as List;
-    
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Distribución por Conceptos',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-            AnimatedBuilder(
-              animation: _chartAnimationController,
-              builder: (context, child) {
-                return SizedBox(
-                  height: 200,
-                  child: Row(
-                    children: conceptos.asMap().entries.map<Widget>((entry) {
-                      final index = entry.key;
-                      final item = entry.value;
-                      final nombre = item['nombre'] as String;
-                      final itemTotal = item['total'] as double;
-                      final porcentaje = item['porcentaje'] as double;
-                      final isSelected = _selectedConceptoIndex == index;
-                      final isAnySelected = _selectedConceptoIndex != null;
-                      final opacity = isSelected ? 1.0 : (isAnySelected ? 0.3 : 1.0);
-                      final scale = isSelected ? 1.1 : 1.0;
-                      
-                      // Animación de altura
-                      final animatedHeight = ((porcentaje / 100) * 180) * _chartAnimationController.value;
-                      
-                      return Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              if (_selectedConceptoIndex == index) {
-                                _selectedConceptoIndex = null;
-                              } else {
-                                _selectedConceptoIndex = index;
-                                // Deseleccionar otros elementos
-                                _selectedMetricCard = null;
-                                _selectedBarIndex = null;
-                                _selectedPeriod = null;
-                                _selectedClienteIndex = null;
-                                _selectedFormaPago = null;
-                              }
-                            });
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                            child: Opacity(
-                              opacity: opacity,
-                              child: Transform.scale(
-                                scale: scale,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.end,
-                                    children: [
-                                      Tooltip(
-                                        message: '$nombre\n${_formatCurrency(itemTotal)}\n${porcentaje.toStringAsFixed(1)}%',
-                                        child: Container(
-                                          width: double.infinity,
-                                          height: animatedHeight,
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              begin: Alignment.bottomCenter,
-                                              end: Alignment.topCenter,
-                                              colors: isSelected
-                                                  ? [
-                                                      _getConceptoColor(nombre),
-                                                      _getConceptoColor(nombre).withOpacity(0.8),
-                                                    ]
-                                                  : [
-                                                      _getConceptoColor(nombre),
-                                                      _getConceptoColor(nombre).withOpacity(0.6),
-                                                    ],
-                                            ),
-                                            borderRadius: const BorderRadius.only(
-                                              topLeft: Radius.circular(8),
-                                              topRight: Radius.circular(8),
-                                            ),
-                                            boxShadow: isSelected
-                                                ? [
-                                                    BoxShadow(
-                                                      color: _getConceptoColor(nombre).withOpacity(0.5),
-                                                      blurRadius: 8,
-                                                      offset: const Offset(0, -2),
-                                                    ),
-                                                  ]
-                                                : null,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        nombre.split(' ').first,
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: isSelected ? _getConceptoColor(nombre) : Colors.grey[600],
-                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '${porcentaje.toStringAsFixed(0)}%',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: _getConceptoColor(nombre),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Obtener color según el ranking
-  Color _getRankColor(int index) {
-    switch (index) {
-      case 0:
-        return Colors.amber;
-      case 1:
-        return Colors.grey[400]!;
-      case 2:
-        return Colors.brown[400]!;
-      default:
-        return Colors.blue;
-    }
-  }
-
   /// Obtener color según forma de pago
   Color _getFormaPagoColor(String tipo) {
     switch (tipo) {
@@ -1151,17 +972,6 @@ class _FormulariosScreenState extends ConsumerState<FormulariosScreen>
         return Colors.purple;
       default:
         return Colors.grey;
-    }
-  }
-
-  /// Obtener color según concepto
-  Color _getConceptoColor(String nombre) {
-    if (nombre.contains('Cartera')) {
-      return Colors.blue;
-    } else if (nombre.contains('Anticipo')) {
-      return Colors.green;
-    } else {
-      return Colors.orange;
     }
   }
 
@@ -1239,23 +1049,6 @@ class _FormulariosScreenState extends ConsumerState<FormulariosScreen>
                         ],
                       ),
                     ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.search,
-                          color: Colors.white,
-                          size: 22,
-                        ),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          // TODO: Implementar búsqueda
-                        },
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -1274,7 +1067,12 @@ class _FormulariosScreenState extends ConsumerState<FormulariosScreen>
                   color: Colors.blue[300]!,
                   onTap: () {
                     _navigateWithAnimation(context, () {
-                      // TODO: Navegar a Panel
+                      Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => const EnDesarrolloScreen(titulo: 'Panel'),
+                        ),
+                      );
                     });
                   },
                 ),
@@ -1293,72 +1091,119 @@ class _FormulariosScreenState extends ConsumerState<FormulariosScreen>
                 _buildDrawerItem(
                   context,
                   index: 2,
-                  icon: Icons.receipt_outlined,
-                  title: 'Facturas',
-                  color: Colors.blue[300]!,
+                  icon: Icons.card_travel_outlined,
+                  title: 'Viaticos',
+                  color: Colors.orange[300]!,
                   onTap: () {
                     _navigateWithAnimation(context, () {
-                      // TODO: Navegar a Facturas
+                      Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => const ViaticosScreen(),
+                        ),
+                      );
                     });
                   },
                 ),
                 _buildDrawerItem(
                   context,
                   index: 3,
-                  icon: Icons.account_balance_wallet_outlined,
-                  title: 'Presupuesto',
+                  icon: Icons.receipt_outlined,
+                  title: 'Facturas',
                   color: Colors.blue[300]!,
                   onTap: () {
                     _navigateWithAnimation(context, () {
-                      // TODO: Navegar a Presupuesto
+                      Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => const EnDesarrolloScreen(titulo: 'Facturas'),
+                        ),
+                      );
                     });
                   },
                 ),
                 _buildDrawerItem(
                   context,
                   index: 4,
-                  icon: Icons.credit_card_outlined,
-                  title: 'Notas de Crédito',
+                  icon: Icons.account_balance_wallet_outlined,
+                  title: 'Presupuesto',
                   color: Colors.blue[300]!,
                   onTap: () {
                     _navigateWithAnimation(context, () {
-                      // TODO: Navegar a Notas de Crédito
+                      Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => const EnDesarrolloScreen(titulo: 'Presupuesto'),
+                        ),
+                      );
                     });
                   },
                 ),
                 _buildDrawerItem(
                   context,
                   index: 5,
-                  icon: Icons.inventory_2_outlined,
-                  title: 'Artículo/Servicios',
-                  color: Colors.green,
+                  icon: Icons.credit_card_outlined,
+                  title: 'Notas de Crédito',
+                  color: Colors.blue[300]!,
                   onTap: () {
                     _navigateWithAnimation(context, () {
-                      // TODO: Navegar a Artículo/Servicios
+                      Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => const EnDesarrolloScreen(titulo: 'Notas de Crédito'),
+                        ),
+                      );
                     });
                   },
                 ),
                 _buildDrawerItem(
                   context,
                   index: 6,
-                  icon: Icons.people_outline,
-                  title: 'Clientes/Proveedores',
-                  color: Colors.red,
+                  icon: Icons.inventory_2_outlined,
+                  title: 'Artículo/Servicios',
+                  color: Colors.green,
                   onTap: () {
                     _navigateWithAnimation(context, () {
-                      // TODO: Navegar a Clientes/Proveedores
+                      Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => const EnDesarrolloScreen(titulo: 'Artículo/Servicios'),
+                        ),
+                      );
                     });
                   },
                 ),
                 _buildDrawerItem(
                   context,
                   index: 7,
+                  icon: Icons.people_outline,
+                  title: 'Clientes/Proveedores',
+                  color: Colors.red,
+                  onTap: () {
+                    _navigateWithAnimation(context, () {
+                      Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => const EnDesarrolloScreen(titulo: 'Clientes/Proveedores'),
+                        ),
+                      );
+                    });
+                  },
+                ),
+                _buildDrawerItem(
+                  context,
+                  index: 8,
                   icon: Icons.bar_chart_outlined,
                   title: 'Informes, Exportación',
                   color: Colors.green,
                   onTap: () {
                     _navigateWithAnimation(context, () {
-                      // TODO: Navegar a Informes
+                      Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => const EnDesarrolloScreen(titulo: 'Informes, Exportación'),
+                        ),
+                      );
                     });
                   },
                 ),
@@ -1558,3 +1403,285 @@ class _AnimatedDrawerItemState extends State<_AnimatedDrawerItem>
   }
 }
 
+/// Widget personalizado para el modal de selección de rango de fechas
+class _DateRangePickerBottomSheet extends StatefulWidget {
+  final DateTimeRange? initialDateRange;
+
+  const _DateRangePickerBottomSheet({
+    this.initialDateRange,
+  });
+
+  @override
+  State<_DateRangePickerBottomSheet> createState() => _DateRangePickerBottomSheetState();
+}
+
+class _DateRangePickerBottomSheetState extends State<_DateRangePickerBottomSheet> {
+  DateTime? _startDate;
+  DateTime? _endDate;
+  DateTime _focusedMonth = DateTime.now();
+  
+  final List<String> _weekDays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  final List<String> _months = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialDateRange != null) {
+      _startDate = widget.initialDateRange!.start;
+      _endDate = widget.initialDateRange!.end;
+      _focusedMonth = widget.initialDateRange!.start;
+    } else {
+      _focusedMonth = DateTime.now();
+    }
+  }
+
+  void _selectDate(DateTime date) {
+    if (_startDate == null || (_startDate != null && _endDate != null)) {
+      // Iniciar nueva selección
+      setState(() {
+        _startDate = date;
+        _endDate = null;
+      });
+    } else if (_startDate != null && _endDate == null) {
+      // Completar rango
+      if (date.isBefore(_startDate!)) {
+        // Si la fecha seleccionada es anterior, intercambiar
+        setState(() {
+          _endDate = _startDate;
+          _startDate = date;
+        });
+      } else {
+        setState(() {
+          _endDate = date;
+        });
+      }
+      
+      // Crear rango y cerrar automáticamente
+      final range = DateTimeRange(
+        start: _startDate!,
+        end: _endDate!,
+      );
+      
+      // Cerrar automáticamente después de un breve delay
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          Navigator.pop(context, range);
+        }
+      });
+    }
+  }
+
+  bool _isDateInRange(DateTime date) {
+    if (_startDate == null) return false;
+    if (_endDate == null) return date.isAtSameMomentAs(_startDate!);
+    
+    final start = _startDate!.isBefore(_endDate!) ? _startDate! : _endDate!;
+    final end = _startDate!.isBefore(_endDate!) ? _endDate! : _startDate!;
+    
+    return (date.isAfter(start.subtract(const Duration(days: 1))) && 
+            date.isBefore(end.add(const Duration(days: 1)))) ||
+           date.isAtSameMomentAs(start) ||
+           date.isAtSameMomentAs(end);
+  }
+
+  bool _isStartDate(DateTime date) {
+    return _startDate != null && date.isAtSameMomentAs(_startDate!);
+  }
+
+  bool _isEndDate(DateTime date) {
+    return _endDate != null && date.isAtSameMomentAs(_endDate!);
+  }
+
+  List<DateTime> _getDaysInMonth(DateTime month) {
+    final firstDay = DateTime(month.year, month.month, 1);
+    final lastDay = DateTime(month.year, month.month + 1, 0);
+    
+    // Obtener el primer lunes de la semana que contiene el primer día
+    int firstWeekday = firstDay.weekday;
+    int daysToSubtract = (firstWeekday - 1) % 7;
+    final firstMonday = firstDay.subtract(Duration(days: daysToSubtract));
+    
+    // Obtener el último domingo de la semana que contiene el último día
+    int lastWeekday = lastDay.weekday;
+    int daysToAdd = 7 - lastWeekday;
+    final lastSunday = lastDay.add(Duration(days: daysToAdd));
+    
+    final days = <DateTime>[];
+    DateTime current = firstMonday;
+    
+    while (!current.isAfter(lastSunday)) {
+      days.add(current);
+      current = current.add(const Duration(days: 1));
+    }
+    
+    return days;
+  }
+
+  void _previousMonth() {
+    setState(() {
+      _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1);
+    });
+  }
+
+  void _nextMonth() {
+    setState(() {
+      _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final days = _getDaysInMonth(_focusedMonth);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.8,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Handle y X de cerrar
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: Icon(Icons.close, color: Colors.grey[600], size: 24),
+                onPressed: () => Navigator.pop(context, null),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Título con navegación de mes
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.calendar_today, color: Colors.blue, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.chevron_left, color: Colors.grey[700]),
+                      onPressed: _previousMonth,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${_months[_focusedMonth.month - 1]} ${_focusedMonth.year}',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: Icon(Icons.chevron_right, color: Colors.grey[700]),
+                      onPressed: _nextMonth,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          // Días de la semana
+          Row(
+            children: _weekDays.map((day) {
+              return Expanded(
+                child: Center(
+                  child: Text(
+                    day,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 8),
+          // Calendario
+          Expanded(
+            child: GridView.builder(
+              padding: EdgeInsets.zero,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 7,
+                childAspectRatio: 1.1,
+                mainAxisSpacing: 4,
+                crossAxisSpacing: 4,
+              ),
+              itemCount: days.length,
+              itemBuilder: (context, index) {
+                final date = days[index];
+                final isCurrentMonth = date.month == _focusedMonth.month;
+                final isToday = date.isAtSameMomentAs(today);
+                final isInRange = _isDateInRange(date);
+                final isStart = _isStartDate(date);
+                final isEnd = _isEndDate(date);
+                
+                return GestureDetector(
+                  onTap: () => _selectDate(date),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isStart || isEnd
+                          ? Colors.blue
+                          : isInRange
+                              ? Colors.blue[100]
+                              : Colors.transparent,
+                      shape: BoxShape.circle,
+                      border: isToday
+                          ? Border.all(color: Colors.blue, width: 2)
+                          : null,
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${date.day}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: isStart || isEnd
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: !isCurrentMonth
+                              ? Colors.grey[400]
+                              : isStart || isEnd
+                                  ? Colors.white
+                                  : Colors.grey[800],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

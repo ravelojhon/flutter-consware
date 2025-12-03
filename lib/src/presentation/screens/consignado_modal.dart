@@ -292,7 +292,14 @@ class _ConsignadoModalState extends ConsumerState<ConsignadoModal> {
                     onPressed: _selectedConsignado.isEmpty
                         ? null
                         : () {
-                            Navigator.pop(context, _selectedConsignado);
+                            // Buscar la cuenta seleccionada para obtener el número de cuenta
+                            final selectedAccount = _filteredAccounts.firstWhere(
+                              (account) => account.descripcion == _selectedConsignado,
+                            );
+                            Navigator.pop(context, {
+                              'descripcion': _selectedConsignado,
+                              'nroCuenta': selectedAccount.nroCuenta ?? '',
+                            });
                           },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,

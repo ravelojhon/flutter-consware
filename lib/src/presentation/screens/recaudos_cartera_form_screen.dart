@@ -6,9 +6,9 @@ import '../../domain/entities/client.dart';
 import '../providers/bank_account_notifier.dart';
 import '../providers/company_notifier.dart';
 import '../providers/factura_notifier.dart';
+import '../providers/recibo_notifier.dart';
 import 'busqueda_clientes_modal.dart';
 import 'busqueda_conceptos_modal.dart';
-import 'consignado_modal.dart';
 import 'formas_pago_modal.dart';
 
 /// Pantalla de formulario de Recaudos de Cartera
@@ -25,17 +25,25 @@ class _RecaudosCarteraFormScreenState
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _formKey = GlobalKey<FormState>();
-  final _observacionController = TextEditingController(); // Para Recaudos de Cartera
-  final _observacionAnticipoController = TextEditingController(); // Para Anticipos y Recaudos
+  final _observacionController =
+      TextEditingController(); // Para Recaudos de Cartera
+  final _observacionAnticipoController =
+      TextEditingController(); // Para Anticipos y Recaudos
 
-  // Controllers para los campos
-  final _clienteController = TextEditingController();
-  final _consignadoController = TextEditingController();
+  // Controllers para los campos compartidos
   final _fechaController = TextEditingController();
   final _reciboController = TextEditingController();
-  final _saldoController = TextEditingController();
   final _vrReciboController = TextEditingController();
-  final _nitController = TextEditingController();
+
+  // Controllers para el tab de Recaudos de Cartera
+  final _carteraClienteController = TextEditingController();
+  final _carteraNitController = TextEditingController();
+  final _carteraSaldoController = TextEditingController();
+  int? _carteraCcSeleccionado;
+  int? _carteraClienteSeleccionadoId;
+  List<Map<String, dynamic>> _carteraFacturas = [];
+  final List<Map<String, dynamic>> _carteraConceptos = [];
+  String? _carteraConceptoSeleccionado;
 
   // Valores calculados (inicializados en 0)
   final double _descuentos = 0;
@@ -43,20 +51,8 @@ class _RecaudosCarteraFormScreenState
   final double _otrosIngresos = 0;
   double _netoRecibo = 0;
 
-  // Lista de facturas con estado (se cargarán según el cliente seleccionado)
-  List<Map<String, dynamic>> _facturas = [];
-
-  // Lista de conceptos de descuentos/retenciones
-  final List<Map<String, dynamic>> _conceptos = [];
-
-  // Controlador para el dropdown de conceptos
-  String? _conceptoSeleccionado;
-
-  // Valor seleccionado para C.C (ID de la compañía)
-  int? _ccSeleccionado;
-
-  // ID del cliente seleccionado (para validaciones)
-  int? _clienteSeleccionadoId;
+  // Número de cuenta del consignado seleccionado
+  String? _nroCuentaConsignado;
 
   // Controladores para los campos Val. Recibo de cada factura
   final Map<int, TextEditingController> _valReciboControllers = {};
@@ -74,6 +70,7 @@ class _RecaudosCarteraFormScreenState
   final _anticipoNitController = TextEditingController();
   final List<Map<String, dynamic>> _anticipoConceptos = [];
   final Map<int, TextEditingController> _anticipoValorControllers = {};
+  int? _anticipoCcSeleccionado;
 
   // Controlador para el campo de búsqueda de facturas
   final _searchFacturaController = TextEditingController();
@@ -83,7 +80,7 @@ class _RecaudosCarteraFormScreenState
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    
+
     // Agregar listener al TabController para actualizar el footer cuando cambie de tab
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
@@ -91,10 +88,10 @@ class _RecaudosCarteraFormScreenState
         _calcularTotales();
       }
     });
-    
+
     _fechaController.text = _formatDate(DateTime.now());
     _reciboController.text = _generateReciboNumber();
-    _saldoController.text = '0';
+    _carteraSaldoController.text = '0';
     _vrReciboController.text = '0';
     _calcularTotales();
 
@@ -104,7 +101,7 @@ class _RecaudosCarteraFormScreenState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Cargar cuentas bancarias para el modal de consignado
       ref.read(bankAccountListNotifierProvider.notifier).refresh();
-      
+
       // Agregar listener para cambios en el estado de facturas
       final notifier = ref.read<FacturaListNotifier>(
         facturaListNotifierProvider,
@@ -119,20 +116,20 @@ class _RecaudosCarteraFormScreenState
   void _calcularTotales({bool actualizarVrRecibo = true}) {
     // Calcular total de Val. Recibo de todas las facturas (suma de todos los valores)
     double totalVrRecibo = 0;
-    for (final factura in _facturas) {
+    for (final factura in _carteraFacturas) {
       totalVrRecibo += factura['valRecibo'] as double? ?? 0.0;
     }
 
     // Calcular total de retenciones
     double totalRetenciones = 0;
-    for (final concepto in _conceptos) {
+    for (final concepto in _carteraConceptos) {
       totalRetenciones += concepto['valor'] as double? ?? 0.0;
     }
 
     // Calcular total cartera (suma de todas las facturas del cliente)
     // Usar totalDb si está disponible, sino usar saldo
     double totalCartera = 0;
-    for (final factura in _facturas) {
+    for (final factura in _carteraFacturas) {
       // Intentar usar totalDb primero, luego saldo
       final totalDb = factura['totalDb'] as double?;
       final saldo = factura['saldo'] as double? ?? 0.0;
@@ -141,7 +138,7 @@ class _RecaudosCarteraFormScreenState
 
     setState(() {
       _retenciones = totalRetenciones;
-      _saldoController.text = totalCartera > 0
+      _carteraSaldoController.text = totalCartera > 0
           ? _formatCurrencyInput(totalCartera)
           : '0';
 
@@ -163,10 +160,10 @@ class _RecaudosCarteraFormScreenState
 
   /// Distribuir el valor de Vr Recibo entre las facturas automáticamente
   void _distribuirVrReciboEnFacturas(double valorTotal) {
-    if (_facturas.isEmpty || valorTotal <= 0) {
+    if (_carteraFacturas.isEmpty || valorTotal <= 0) {
       // Si no hay facturas o el valor es 0, limpiar todas las selecciones
       setState(() {
-        for (final factura in _facturas) {
+        for (final factura in _carteraFacturas) {
           factura['ok'] = false;
           factura['valRecibo'] = 0.0;
         }
@@ -180,7 +177,7 @@ class _RecaudosCarteraFormScreenState
     }
 
     // Crear una copia de las facturas ordenadas por fecha (más antiguas primero)
-    final facturasOrdenadas = List<Map<String, dynamic>>.from(_facturas);
+    final facturasOrdenadas = List<Map<String, dynamic>>.from(_carteraFacturas);
     facturasOrdenadas.sort((a, b) {
       final fechaA = a['fecha'] as String? ?? '';
       final fechaB = b['fecha'] as String? ?? '';
@@ -191,7 +188,7 @@ class _RecaudosCarteraFormScreenState
 
     setState(() {
       // Primero, limpiar todas las facturas
-      for (final factura in _facturas) {
+      for (final factura in _carteraFacturas) {
         factura['ok'] = false;
         factura['valRecibo'] = 0.0;
       }
@@ -204,22 +201,24 @@ class _RecaudosCarteraFormScreenState
         final saldoDisponible = saldo > 0 ? saldo : (totalDb ?? 0.0);
 
         if (saldoDisponible > 0) {
-          // Buscar el índice original de esta factura en _facturas
-          final indexOriginal = _facturas.indexWhere((f) =>
-              f['factura'] == factura['factura'] &&
-              f['sucursal'] == factura['sucursal'] &&
-              f['tipo'] == factura['tipo']);
+          // Buscar el índice original de esta factura en _carteraFacturas
+          final indexOriginal = _carteraFacturas.indexWhere(
+            (f) =>
+                f['factura'] == factura['factura'] &&
+                f['sucursal'] == factura['sucursal'] &&
+                f['tipo'] == factura['tipo'],
+          );
 
           if (indexOriginal != -1) {
             if (valorRestante >= saldoDisponible) {
               // El valor cubre todo el saldo de esta factura
-              _facturas[indexOriginal]['ok'] = true;
-              _facturas[indexOriginal]['valRecibo'] = saldoDisponible;
+              _carteraFacturas[indexOriginal]['ok'] = true;
+              _carteraFacturas[indexOriginal]['valRecibo'] = saldoDisponible;
               valorRestante -= saldoDisponible;
             } else {
               // El valor restante es menor que el saldo, asignar el restante a esta factura
-              _facturas[indexOriginal]['ok'] = true;
-              _facturas[indexOriginal]['valRecibo'] = valorRestante;
+              _carteraFacturas[indexOriginal]['ok'] = true;
+              _carteraFacturas[indexOriginal]['valRecibo'] = valorRestante;
               valorRestante = 0;
               break;
             }
@@ -228,8 +227,9 @@ class _RecaudosCarteraFormScreenState
       }
 
       // Actualizar los controladores de Val. Recibo
-      for (int i = 0; i < _facturas.length; i++) {
-        final valRecibo = (_facturas[i]['valRecibo'] as num?)?.toDouble() ?? 0.0;
+      for (int i = 0; i < _carteraFacturas.length; i++) {
+        final valRecibo =
+            (_carteraFacturas[i]['valRecibo'] as num?)?.toDouble() ?? 0.0;
         if (_valReciboControllers.containsKey(i)) {
           _valReciboControllers[i]!.text = _formatCurrencyInput(valRecibo);
         }
@@ -253,7 +253,7 @@ class _RecaudosCarteraFormScreenState
     _valReciboControllers.clear();
 
     setState(() {
-      _facturas = [];
+      _carteraFacturas = [];
     });
 
     // Usar el notifier para cargar facturas con paginación
@@ -309,25 +309,32 @@ class _RecaudosCarteraFormScreenState
 
     // Actualizar siempre que haya facturas nuevas o la cantidad cambie
     // Esto asegura que la UI se actualice correctamente
-    final debeActualizar = !_listasFacturasSonIguales(_facturas, nuevasFacturas) ||
-        _facturas.length != nuevasFacturas.length ||
-        (nuevasFacturas.isNotEmpty && _facturas.isEmpty);
+    final debeActualizar =
+        !_listasFacturasSonIguales(_carteraFacturas, nuevasFacturas) ||
+        _carteraFacturas.length != nuevasFacturas.length ||
+        (nuevasFacturas.isNotEmpty && _carteraFacturas.isEmpty);
 
     if (debeActualizar || nuevasFacturas.isNotEmpty) {
-      debugPrint('🔄 Actualizando _facturas: ${_facturas.length} -> ${nuevasFacturas.length}');
-      
+      debugPrint(
+        '🔄 Actualizando _carteraFacturas: ${_carteraFacturas.length} -> ${nuevasFacturas.length}',
+      );
+
       // Usar SchedulerBinding para asegurar que el setState se ejecute en el frame correcto
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           setState(() {
-            _facturas = nuevasFacturas;
-            debugPrint('✅ _facturas actualizado en setState: ${_facturas.length} facturas');
-            
+            _carteraFacturas = nuevasFacturas;
+            debugPrint(
+              '✅ _carteraFacturas actualizado en setState: ${_carteraFacturas.length} facturas',
+            );
+
             // Si hay error y no hay facturas, mostrar mensaje
             if (state.error != null && state.facturas.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Error al cargar facturas: ${state.error!.message}'),
+                  content: Text(
+                    'Error al cargar facturas: ${state.error!.message}',
+                  ),
                   backgroundColor: Colors.red,
                 ),
               );
@@ -354,11 +361,11 @@ class _RecaudosCarteraFormScreenState
     List<Map<String, dynamic>> lista2,
   ) {
     if (lista1.length != lista2.length) return false;
-    
+
     for (int i = 0; i < lista1.length; i++) {
       final f1 = lista1[i];
       final f2 = lista2[i];
-      
+
       // Comparar campos clave para determinar si son la misma factura
       if (f1['factura'] != f2['factura'] ||
           f1['sucursal'] != f2['sucursal'] ||
@@ -366,7 +373,7 @@ class _RecaudosCarteraFormScreenState
         return false;
       }
     }
-    
+
     return true;
   }
 
@@ -382,11 +389,11 @@ class _RecaudosCarteraFormScreenState
 
   /// Agregar concepto seleccionado a la lista
   void _agregarConcepto() {
-    if (_conceptoSeleccionado == null) return;
+    if (_carteraConceptoSeleccionado == null) return;
 
     // Calcular base (suma de facturas seleccionadas)
     double base = 0;
-    for (final factura in _facturas) {
+    for (final factura in _carteraFacturas) {
       if (factura['ok'] == true) {
         base += factura['valRecibo'] as double;
       }
@@ -396,7 +403,7 @@ class _RecaudosCarteraFormScreenState
     double porcentaje = 0;
     double valor = 0;
 
-    switch (_conceptoSeleccionado) {
+    switch (_carteraConceptoSeleccionado) {
       case 'retencion_ica':
         descripcion = '003 RETENCION DE ICA 7 X 1000';
         porcentaje = 0.54;
@@ -416,13 +423,13 @@ class _RecaudosCarteraFormScreenState
 
     // Agregar el concepto
     setState(() {
-      _conceptos.add({
+      _carteraConceptos.add({
         'descripcion': descripcion,
         'base': base,
         'porcentaje': porcentaje,
         'valor': valor,
       });
-      _conceptoSeleccionado = null; // Vaciar el dropdown
+      _carteraConceptoSeleccionado = null; // Vaciar el dropdown
       _calcularTotales();
     });
   }
@@ -437,13 +444,12 @@ class _RecaudosCarteraFormScreenState
     _tabController.dispose();
     _observacionController.dispose();
     _observacionAnticipoController.dispose();
-    _clienteController.dispose();
-    _consignadoController.dispose();
+    _carteraClienteController.dispose();
+    _carteraNitController.dispose();
+    _carteraSaldoController.dispose();
     _fechaController.dispose();
     _reciboController.dispose();
-    _saldoController.dispose();
     _vrReciboController.dispose();
-    _nitController.dispose();
     _anticipoClienteController.dispose();
     _anticipoNitController.dispose();
     for (final controller in _anticipoValorControllers.values) {
@@ -513,25 +519,11 @@ class _RecaudosCarteraFormScreenState
         const SizedBox(height: 16),
 
         // Información del cliente (sin título)
-        _buildSectionCard(
-          title: '',
-          children: [
-            _buildCCTField(),
-            const SizedBox(height: 12),
-            _buildConsignadoField(),
-          ],
-        ),
+        _buildSectionCard(title: '', children: [_buildCCTField()]),
         const SizedBox(height: 16),
 
-        // Información del cliente (con título)
-        _buildSectionCard(
-          title: 'Información del Cliente',
-          children: [
-            _buildNitField(),
-            const SizedBox(height: 12),
-            _buildClienteField(),
-          ],
-        ),
+        // Información del cliente (mejorada visualmente)
+        _buildClienteSection(),
         const SizedBox(height: 16),
 
         // Total cartera y valores (sin título)
@@ -539,7 +531,7 @@ class _RecaudosCarteraFormScreenState
           title: '',
           children: [
             TextFormField(
-              controller: _saldoController,
+              controller: _carteraSaldoController,
               readOnly: true,
               style: const TextStyle(
                 color: Colors.red,
@@ -601,103 +593,8 @@ class _RecaudosCarteraFormScreenState
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Radio button y campos de cliente
-        _buildSectionCard(
-          title: '',
-          children: [
-            Row(
-              children: [
-                Radio<String>(
-                  value: 'cliente',
-                  groupValue: _tipoAnticipoSeleccionado,
-                  onChanged: (value) {
-                    setState(() {
-                      _tipoAnticipoSeleccionado = value;
-                      if (value != 'cliente') {
-                        _anticipoClienteController.clear();
-                        _anticipoNitController.clear();
-                        _anticipoConceptos.clear();
-                      }
-                    });
-                  },
-                ),
-                const Text('Cliente'),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _anticipoClienteController,
-              readOnly: true,
-              enabled: _tipoAnticipoSeleccionado == 'cliente',
-              decoration: InputDecoration(
-                labelText: 'Cliente',
-                prefixIcon: const Icon(Icons.person),
-                suffixIcon: _tipoAnticipoSeleccionado == 'cliente'
-                    ? const Icon(Icons.search)
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                filled: true,
-                fillColor: _tipoAnticipoSeleccionado == 'cliente'
-                    ? Colors.white
-                    : Colors.grey[200],
-              ),
-              onTap: _tipoAnticipoSeleccionado == 'cliente'
-                  ? () async {
-                      final cliente = await showGeneralDialog<Client>(
-                        context: context,
-                        barrierDismissible: true,
-                        barrierLabel: 'Búsqueda de Clientes',
-                        barrierColor: Colors.black54,
-                        transitionDuration: const Duration(milliseconds: 300),
-                        pageBuilder: (context, animation, secondaryAnimation) =>
-                            const BusquedaClientesModal(),
-                        transitionBuilder:
-                            (context, animation, secondaryAnimation, child) =>
-                                SlideTransition(
-                                  position:
-                                      Tween<Offset>(
-                                        begin: const Offset(0, 0.3),
-                                        end: Offset.zero,
-                                      ).animate(
-                                        CurvedAnimation(
-                                          parent: animation,
-                                          curve: Curves.easeOutCubic,
-                                        ),
-                                      ),
-                                  child: FadeTransition(
-                                    opacity: animation,
-                                    child: child,
-                                  ),
-                                ),
-                      );
-                      if (cliente != null && mounted) {
-                        setState(() {
-                          _anticipoClienteController.text = cliente.fullName;
-                          _anticipoNitController.text = cliente.nit;
-                        });
-                      }
-                    }
-                  : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _anticipoNitController,
-              readOnly: true,
-              enabled: false,
-              decoration: InputDecoration(
-                labelText: 'C.C o Nit',
-                prefixIcon: const Icon(Icons.badge),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                filled: true,
-                fillColor: Colors.grey[200],
-              ),
-            ),
-          ],
-        ),
+        // Sección de cliente mejorada visualmente
+        _buildAnticipoClienteSection(),
         const SizedBox(height: 16),
 
         // Tabla de conceptos
@@ -788,8 +685,9 @@ class _RecaudosCarteraFormScreenState
   /// Construir fila de concepto con datos
   Widget _buildAnticipoConceptoRow(int index, Map<String, dynamic> concepto) {
     final valorController = _getAnticipoValorController(index);
-    final tieneConcepto = (concepto['referencia'] as String?)?.isNotEmpty ?? false;
-    
+    final tieneConcepto =
+        (concepto['referencia'] as String?)?.isNotEmpty ?? false;
+
     return InkWell(
       onTap: () {
         _mostrarModalConceptos(index);
@@ -873,13 +771,14 @@ class _RecaudosCarteraFormScreenState
                   controller: valorController,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
                   decoration: InputDecoration(
                     labelText: 'Valor',
                     prefixText: r'$ ',
-                    prefixStyle: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    prefixStyle: const TextStyle(fontWeight: FontWeight.bold),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -889,7 +788,10 @@ class _RecaudosCarteraFormScreenState
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.blue, width: 2),
+                      borderSide: const BorderSide(
+                        color: Colors.blue,
+                        width: 2,
+                      ),
                     ),
                     filled: true,
                     fillColor: Colors.white,
@@ -899,31 +801,34 @@ class _RecaudosCarteraFormScreenState
                     ),
                     isDense: true,
                   ),
-                onChanged: (value) {
-                  // Limpiar el valor de caracteres no numéricos
-                  final String cleanValue = value.replaceAll(RegExp(r'[^\d]'), '');
-                  
-                  // Convertir a número
-                  final numValue = double.tryParse(cleanValue) ?? 0.0;
-                  
-                  // Formatear con separadores de miles
-                  final formatted = _formatCurrencyInput(numValue);
-                  
-                  // Actualizar el controlador solo si el valor formateado es diferente
-                  if (valorController.text != formatted) {
-                    valorController.value = TextEditingValue(
-                      text: formatted,
-                      selection: TextSelection.collapsed(
-                        offset: formatted.length,
-                      ),
+                  onChanged: (value) {
+                    // Limpiar el valor de caracteres no numéricos
+                    final String cleanValue = value.replaceAll(
+                      RegExp(r'[^\d]'),
+                      '',
                     );
-                  }
 
-                  setState(() {
-                    _anticipoConceptos[index]['valor'] = numValue;
-                    _calcularTotalesAnticipos();
-                  });
-                },
+                    // Convertir a número
+                    final numValue = double.tryParse(cleanValue) ?? 0.0;
+
+                    // Formatear con separadores de miles
+                    final formatted = _formatCurrencyInput(numValue);
+
+                    // Actualizar el controlador solo si el valor formateado es diferente
+                    if (valorController.text != formatted) {
+                      valorController.value = TextEditingValue(
+                        text: formatted,
+                        selection: TextSelection.collapsed(
+                          offset: formatted.length,
+                        ),
+                      );
+                    }
+
+                    setState(() {
+                      _anticipoConceptos[index]['valor'] = numValue;
+                      _calcularTotalesAnticipos();
+                    });
+                  },
                 ),
               ),
             ],
@@ -950,11 +855,7 @@ class _RecaudosCarteraFormScreenState
             flex: 4,
             child: Row(
               children: [
-                Icon(
-                  Icons.touch_app,
-                  size: 16,
-                  color: Colors.blue[600],
-                ),
+                Icon(Icons.touch_app, size: 16, color: Colors.blue[600]),
                 const SizedBox(width: 4),
                 Text(
                   'Click para seleccionar concepto',
@@ -1017,17 +918,17 @@ class _RecaudosCarteraFormScreenState
   /// Quitar un concepto de anticipo y restablecer valores
   void _quitarAnticipoConcepto(int index) {
     if (index >= _anticipoConceptos.length) return;
-    
+
     setState(() {
       // Limpiar el controlador de valor si existe
       if (_anticipoValorControllers.containsKey(index)) {
         _anticipoValorControllers[index]!.dispose();
         _anticipoValorControllers.remove(index);
       }
-      
+
       // Eliminar el concepto de la lista
       _anticipoConceptos.removeAt(index);
-      
+
       // Reorganizar los controladores restantes
       final keysToUpdate = <int, TextEditingController>{};
       _anticipoValorControllers.forEach((key, controller) {
@@ -1039,7 +940,7 @@ class _RecaudosCarteraFormScreenState
       });
       _anticipoValorControllers.clear();
       _anticipoValorControllers.addAll(keysToUpdate);
-      
+
       // Recalcular totales
       _calcularTotalesAnticipos();
     });
@@ -1064,7 +965,7 @@ class _RecaudosCarteraFormScreenState
     if (currentTab == 0) {
       // Tab de Recaudos de Cartera: suma de Val. Recibo de facturas
       double totalVrRecibo = 0;
-      for (final factura in _facturas) {
+      for (final factura in _carteraFacturas) {
         totalVrRecibo += factura['valRecibo'] as double? ?? 0.0;
       }
       return totalVrRecibo;
@@ -1113,49 +1014,6 @@ class _RecaudosCarteraFormScreenState
     ),
   );
 
-  /// Construir campo de consignado con modal
-  Widget _buildConsignadoField() => TextFormField(
-    controller: _consignadoController,
-    readOnly: true,
-    decoration: InputDecoration(
-      labelText: 'Consignado en',
-      suffixIcon: const Icon(Icons.arrow_drop_down),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-      filled: true,
-      fillColor: Colors.white,
-    ),
-    onTap: () async {
-      final selected = await showGeneralDialog<String>(
-        context: context,
-        barrierDismissible: true,
-        barrierLabel: 'Consignado',
-        barrierColor: Colors.black54,
-        transitionDuration: const Duration(milliseconds: 300),
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const ConsignadoModal(),
-        transitionBuilder: (context, animation, secondaryAnimation, child) =>
-            SlideTransition(
-              position:
-                  Tween<Offset>(
-                    begin: const Offset(0, 0.3),
-                    end: Offset.zero,
-                  ).animate(
-                    CurvedAnimation(
-                      parent: animation,
-                      curve: Curves.easeOutCubic,
-                    ),
-                  ),
-              child: FadeTransition(opacity: animation, child: child),
-            ),
-      );
-      if (selected != null && mounted) {
-        setState(() {
-          _consignadoController.text = selected;
-        });
-      }
-    },
-  );
-
   /// Construir campo de Valor Recibo con formato y color verde
   Widget _buildVrReciboField() => TextFormField(
     controller: _vrReciboController,
@@ -1186,44 +1044,73 @@ class _RecaudosCarteraFormScreenState
       filled: true,
       fillColor: Colors.green[50],
       hintText: 'Ingrese el valor total a distribuir',
-      helperText: 'El valor se distribuirá automáticamente entre las facturas',
+      helperText: 'Valor distribuido automáticamente entre las facturas',
     ),
     onChanged: (value) {
       // Limpiar el valor de caracteres no numéricos
       final String cleanValue = value.replaceAll(RegExp(r'[^\d]'), '');
-      
+
       // Convertir a número
       final numValue = double.tryParse(cleanValue) ?? 0.0;
-      
-      // Formatear con separadores de miles
-      final formatted = _formatCurrencyInput(numValue);
-      
-      // Actualizar el controlador solo si el valor formateado es diferente
-      if (_vrReciboController.text != formatted) {
-        _vrReciboController.value = TextEditingValue(
-          text: formatted,
-          selection: TextSelection.collapsed(
-            offset: formatted.length,
-          ),
-        );
+
+      // Calcular el total de la cartera (suma de todos los saldos de facturas)
+      double totalCartera = 0;
+      for (final factura in _carteraFacturas) {
+        final saldo = (factura['saldo'] as num?)?.toDouble() ?? 0.0;
+        final totalDb = (factura['totalDb'] as num?)?.toDouble() ?? 0.0;
+        totalCartera += saldo > 0 ? saldo : totalDb;
       }
-      
-      // Distribuir el valor entre las facturas
-      _distribuirVrReciboEnFacturas(numValue);
+
+      // Si el valor ingresado es mayor al total de la cartera, ajustarlo al total de la cartera
+      double valorAjustado = numValue;
+      if (numValue > totalCartera && totalCartera > 0) {
+        valorAjustado = totalCartera;
+        final formattedAjustado = _formatCurrencyInput(valorAjustado);
+        _vrReciboController.value = TextEditingValue(
+          text: formattedAjustado,
+          selection: TextSelection.collapsed(offset: formattedAjustado.length),
+        );
+      } else {
+        // Formatear con separadores de miles
+        final formatted = _formatCurrencyInput(numValue);
+
+        // Actualizar el controlador solo si el valor formateado es diferente
+        if (_vrReciboController.text != formatted) {
+          _vrReciboController.value = TextEditingValue(
+            text: formatted,
+            selection: TextSelection.collapsed(offset: formatted.length),
+          );
+        }
+      }
+
+      // Distribuir el valor ajustado entre las facturas
+      _distribuirVrReciboEnFacturas(valorAjustado);
     },
   );
 
   /// Construir campo de NIT con modal de búsqueda
   Widget _buildNitField() => TextFormField(
-    controller: _nitController,
+    controller: _carteraNitController,
     readOnly: true,
     decoration: InputDecoration(
       labelText: 'Nº Recaudo Vdor Nit',
-      prefixIcon: const Icon(Icons.badge),
+      prefixIcon: const Icon(Icons.badge_outlined),
       suffixIcon: const Icon(Icons.search),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: Colors.grey[400]!),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: Colors.grey[400]!),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: Colors.grey[600]!, width: 2),
+      ),
       filled: true,
       fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     ),
     onTap: () async {
       final cliente = await showGeneralDialog<Client>(
@@ -1251,10 +1138,10 @@ class _RecaudosCarteraFormScreenState
       );
       if (cliente != null && mounted) {
         setState(() {
-          _clienteController.text = cliente.fullName;
-          _nitController.text = cliente.nit;
+          _carteraClienteController.text = cliente.fullName;
+          _carteraNitController.text = cliente.nit;
           // Guardar el ID del cliente (f9740_id) para validaciones
-          _clienteSeleccionadoId = cliente.id;
+          _carteraClienteSeleccionadoId = cliente.id;
           // Cargar facturas del cliente seleccionado usando el f9740_id como id_tercero
           // El cliente.id contiene el valor de f9740_id del cliente seleccionado
           _cargarFacturasCliente(cliente.id);
@@ -1263,16 +1150,222 @@ class _RecaudosCarteraFormScreenState
     },
   );
 
+  /// Construir sección de cliente (mejorada visualmente)
+  Widget _buildClienteSection() => DecoratedBox(
+    decoration: BoxDecoration(
+      color: Colors.grey[50],
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.grey[300]!),
+    ),
+    child: Card(
+      elevation: 0,
+      color: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.person, color: Colors.grey[600], size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'Información del Cliente',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildNitField(),
+            const SizedBox(height: 12),
+            _buildClienteField(),
+          ],
+        ),
+      ),
+    ),
+  );
+
   /// Construir campo de cliente (solo lectura)
   Widget _buildClienteField() => TextFormField(
-    controller: _clienteController,
+    controller: _carteraClienteController,
     readOnly: true,
     decoration: InputDecoration(
       labelText: 'Cliente',
-      prefixIcon: const Icon(Icons.person),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      prefixIcon: const Icon(Icons.person_outline),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: Colors.grey[400]!),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: Colors.grey[400]!),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: Colors.grey[600]!, width: 2),
+      ),
       filled: true,
       fillColor: Colors.grey[200],
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    ),
+  );
+
+  /// Construir sección de cliente para anticipos (mejorada visualmente)
+  Widget _buildAnticipoClienteSection() => DecoratedBox(
+    decoration: BoxDecoration(
+      color: Colors.grey[50],
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.grey[300]!),
+    ),
+    child: Card(
+      elevation: 0,
+      color: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.person, color: Colors.grey[600], size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'Información del Cliente',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Radio<String>(
+                  value: 'cliente',
+                  groupValue: _tipoAnticipoSeleccionado,
+                  onChanged: (value) {
+                    setState(() {
+                      _tipoAnticipoSeleccionado = value;
+                      if (value != 'cliente') {
+                        _anticipoClienteController.clear();
+                        _anticipoNitController.clear();
+                        _anticipoConceptos.clear();
+                      }
+                    });
+                  },
+                ),
+                const Text('Cliente'),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _anticipoClienteController,
+              readOnly: true,
+              enabled: _tipoAnticipoSeleccionado == 'cliente',
+              decoration: InputDecoration(
+                labelText: 'Cliente',
+                prefixIcon: const Icon(Icons.person_outline),
+                suffixIcon: _tipoAnticipoSeleccionado == 'cliente'
+                    ? const Icon(Icons.search)
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[400]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[400]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[600]!, width: 2),
+                ),
+                filled: true,
+                fillColor: _tipoAnticipoSeleccionado == 'cliente'
+                    ? Colors.white
+                    : Colors.grey[200],
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
+              onTap: _tipoAnticipoSeleccionado == 'cliente'
+                  ? () async {
+                      final cliente = await showGeneralDialog<Client>(
+                        context: context,
+                        barrierDismissible: true,
+                        barrierLabel: 'Búsqueda de Clientes',
+                        barrierColor: Colors.black54,
+                        transitionDuration: const Duration(milliseconds: 300),
+                        pageBuilder: (context, animation, secondaryAnimation) =>
+                            const BusquedaClientesModal(),
+                        transitionBuilder:
+                            (context, animation, secondaryAnimation, child) =>
+                                SlideTransition(
+                                  position:
+                                      Tween<Offset>(
+                                        begin: const Offset(0, 0.3),
+                                        end: Offset.zero,
+                                      ).animate(
+                                        CurvedAnimation(
+                                          parent: animation,
+                                          curve: Curves.easeOutCubic,
+                                        ),
+                                      ),
+                                  child: FadeTransition(
+                                    opacity: animation,
+                                    child: child,
+                                  ),
+                                ),
+                      );
+                      if (cliente != null && mounted) {
+                        setState(() {
+                          _anticipoClienteController.text = cliente.fullName;
+                          _anticipoNitController.text = cliente.nit;
+                        });
+                      }
+                    }
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _anticipoNitController,
+              readOnly: true,
+              enabled: false,
+              decoration: InputDecoration(
+                labelText: 'C.C o Nit',
+                prefixIcon: const Icon(Icons.badge_outlined),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[400]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[400]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[600]!, width: 2),
+                ),
+                filled: true,
+                fillColor: Colors.grey[200],
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     ),
   );
 
@@ -1324,38 +1417,51 @@ class _RecaudosCarteraFormScreenState
     final companyState = ref.watch(companyListNotifierProvider);
 
     return companyState.when(
-      data: (companies) => DropdownButtonFormField<int>(
-        initialValue: _ccSeleccionado,
-        decoration: InputDecoration(
-          labelText: 'C.C',
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          filled: true,
-          fillColor: Colors.white,
-          prefixIcon: const Icon(Icons.business),
-          errorStyle: const TextStyle(height: 0, fontSize: 0),
-        ),
-        hint: const Text('Seleccione C.C'),
-        isExpanded: true,
-        items: companies
-            .map(
-              (company) => DropdownMenuItem<int>(
-                value: company.id,
-                child: Text(
-                  company.displayName,
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 2,
-                ),
-              ),
-            )
-            .toList(),
-        onChanged: (value) {
-          setState(() {
-            _ccSeleccionado = value;
+      data: (companies) {
+        // Si hay compañías y no hay ninguna seleccionada, seleccionar la primera automáticamente
+        if (companies.isNotEmpty && _carteraCcSeleccionado == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() {
+                _carteraCcSeleccionado = companies.first.id;
+              });
+            }
           });
-        },
-      ),
+        }
+
+        return DropdownButtonFormField<int>(
+          initialValue: _carteraCcSeleccionado,
+          decoration: InputDecoration(
+            labelText: 'C.C',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            filled: true,
+            fillColor: Colors.white,
+            prefixIcon: const Icon(Icons.business),
+            errorStyle: const TextStyle(height: 0, fontSize: 0),
+          ),
+          hint: const Text('Seleccione C.C'),
+          isExpanded: true,
+          items: companies
+              .map(
+                (company) => DropdownMenuItem<int>(
+                  value: company.id,
+                  child: Text(
+                    company.displayName,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (value) {
+            setState(() {
+              _carteraCcSeleccionado = value;
+            });
+          },
+        );
+      },
       loading: () => DropdownButtonFormField<int>(
-        initialValue: _ccSeleccionado,
+        initialValue: _carteraCcSeleccionado,
         decoration: InputDecoration(
           labelText: 'C.C',
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -1388,7 +1494,7 @@ class _RecaudosCarteraFormScreenState
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             DropdownButtonFormField<int>(
-              initialValue: _ccSeleccionado,
+              initialValue: _carteraCcSeleccionado,
               decoration: InputDecoration(
                 labelText: 'C.C',
                 border: OutlineInputBorder(
@@ -1455,73 +1561,84 @@ class _RecaudosCarteraFormScreenState
       return map;
     }).toList();
 
-    // Sincronizar _facturas con el estado del provider cuando sea necesario
-    // Si _facturas está vacío pero el estado tiene facturas, programar actualización
-    if (_facturas.isEmpty && facturaState.facturas.isNotEmpty) {
+    // Sincronizar _carteraFacturas con el estado del provider cuando sea necesario
+    // Si _carteraFacturas está vacío pero el estado tiene facturas, programar actualización
+    if (_carteraFacturas.isEmpty && facturaState.facturas.isNotEmpty) {
       debugPrint(
-        '🔄 Programando sincronización de _facturas: ${facturasFromState.length} facturas',
+        '🔄 Programando sincronización de _carteraFacturas: ${facturasFromState.length} facturas',
       );
       // Programar actualización para el siguiente frame
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           setState(() {
-            _facturas = facturasFromState;
-            debugPrint('✅ _facturas sincronizado: ${_facturas.length} facturas');
+            _carteraFacturas = facturasFromState;
+            debugPrint(
+              '✅ _carteraFacturas sincronizado: ${_carteraFacturas.length} facturas',
+            );
             _calcularTotales();
           });
         }
       });
-    } else if (_facturas.length != facturaState.facturas.length && 
-               facturaState.facturas.isNotEmpty) {
+    } else if (_carteraFacturas.length != facturaState.facturas.length &&
+        facturaState.facturas.isNotEmpty) {
       // Si la cantidad de facturas cambió, actualizar (nuevo cliente seleccionado)
       debugPrint(
-        '🔄 Programando actualización de _facturas por cambio de cantidad: ${facturasFromState.length} facturas',
+        '🔄 Programando actualización de _carteraFacturas por cambio de cantidad: ${facturasFromState.length} facturas',
       );
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           setState(() {
-            _facturas = facturasFromState;
-            debugPrint('✅ _facturas actualizado: ${_facturas.length} facturas');
+            _carteraFacturas = facturasFromState;
+            debugPrint(
+              '✅ _carteraFacturas actualizado: ${_carteraFacturas.length} facturas',
+            );
             _calcularTotales();
           });
         }
       });
     }
 
-    // Priorizar _facturas sobre el estado del provider porque _facturas se actualiza
+    // Priorizar _carteraFacturas sobre el estado del provider porque _carteraFacturas se actualiza
     // inmediatamente cuando cambia el estado y puede tener cambios locales del usuario
-    // Solo usar el estado del provider si _facturas está vacío
-    final facturasBase = _facturas.isNotEmpty
-        ? _facturas
+    // Solo usar el estado del provider si _carteraFacturas está vacío
+    final facturasBase = _carteraFacturas.isNotEmpty
+        ? _carteraFacturas
         : (facturaState.facturas.isNotEmpty
-            ? facturasFromState
-            : <Map<String, dynamic>>[]);
+              ? facturasFromState
+              : <Map<String, dynamic>>[]);
 
     // Filtrar facturas por número de factura si hay texto de búsqueda
     final facturasParaMostrar = _searchFacturaText.isEmpty
         ? facturasBase
         : facturasBase.where((factura) {
-            final facturaNum = (factura['factura'] as String?)?.toLowerCase() ?? '';
+            final facturaNum =
+                (factura['factura'] as String?)?.toLowerCase() ?? '';
             return facturaNum.contains(_searchFacturaText.toLowerCase());
           }).toList();
 
     debugPrint(
-      '📊 _buildFacturasTable: _facturas.length=${_facturas.length}, facturaState.facturas.length=${facturaState.facturas.length}, facturasParaMostrar.length=${facturasParaMostrar.length}, isLoading=${facturaState.isLoading}, error=${facturaState.error?.message}',
+      '📊 _buildFacturasTable: _carteraFacturas.length=${_carteraFacturas.length}, facturaState.facturas.length=${facturaState.facturas.length}, facturasParaMostrar.length=${facturasParaMostrar.length}, isLoading=${facturaState.isLoading}, error=${facturaState.error?.message}',
     );
-    
+
     // Debug adicional: mostrar contenido de las primeras facturas
     if (facturasParaMostrar.isNotEmpty) {
-      debugPrint('📋 Primera factura en facturasParaMostrar: ${facturasParaMostrar.first}');
+      debugPrint(
+        '📋 Primera factura en facturasParaMostrar: ${facturasParaMostrar.first}',
+      );
     }
-    if (_facturas.isNotEmpty) {
-      debugPrint('📋 Primera factura en _facturas: ${_facturas.first}');
+    if (_carteraFacturas.isNotEmpty) {
+      debugPrint(
+        '📋 Primera factura en _carteraFacturas: ${_carteraFacturas.first}',
+      );
     }
     if (facturaState.facturas.isNotEmpty) {
-      debugPrint('📋 Primera factura en facturaState: ${facturaState.facturas.first.toMap()}');
+      debugPrint(
+        '📋 Primera factura en facturaState: ${facturaState.facturas.first.toMap()}',
+      );
     }
 
     // Si no hay cliente seleccionado, mostrar mensaje
-    if (_clienteSeleccionadoId == null) {
+    if (_carteraClienteSeleccionadoId == null) {
       return Card(
         elevation: 2,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1593,7 +1710,7 @@ class _RecaudosCarteraFormScreenState
         facturasParaMostrar.isEmpty &&
         facturaState.error == null) {
       debugPrint(
-        '⚠️ Mostrando mensaje "No hay facturas": facturasParaMostrar.isEmpty=${facturasParaMostrar.isEmpty}, _facturas.length=${_facturas.length}, facturaState.facturas.length=${facturaState.facturas.length}',
+        '⚠️ Mostrando mensaje "No hay facturas": facturasParaMostrar.isEmpty=${facturasParaMostrar.isEmpty}, _carteraFacturas.length=${_carteraFacturas.length}, facturaState.facturas.length=${facturaState.facturas.length}',
       );
       return Card(
         elevation: 2,
@@ -1670,10 +1787,7 @@ class _RecaudosCarteraFormScreenState
                     if (facturasParaMostrar.length != facturasBase.length)
                       Text(
                         '${facturasParaMostrar.length} de ${facturasBase.length}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                   ],
                 ),
@@ -1761,7 +1875,7 @@ class _RecaudosCarteraFormScreenState
             },
           ),
           // Footer con total del saldo y controles de paginación
-          Container(
+          DecoratedBox(
             decoration: BoxDecoration(
               color: Colors.grey[50],
               border: Border(top: BorderSide(color: Colors.grey[300]!)),
@@ -1816,9 +1930,10 @@ class _RecaudosCarteraFormScreenState
                               (facturaState.currentPage > 1) &&
                                   (!facturaState.isLoadingMore)
                               ? () {
-                                  final notifier = ref.read<FacturaListNotifier>(
-                                    facturaListNotifierProvider,
-                                  );
+                                  final notifier = ref
+                                      .read<FacturaListNotifier>(
+                                        facturaListNotifierProvider,
+                                      );
                                   notifier.loadPreviousPage();
                                 }
                               : null,
@@ -1831,11 +1946,13 @@ class _RecaudosCarteraFormScreenState
                         IconButton(
                           icon: const Icon(Icons.chevron_right),
                           onPressed:
-                              facturaState.hasMore && (!facturaState.isLoadingMore)
+                              facturaState.hasMore &&
+                                  (!facturaState.isLoadingMore)
                               ? () {
-                                  final notifier = ref.read<FacturaListNotifier>(
-                                    facturaListNotifierProvider,
-                                  );
+                                  final notifier = ref
+                                      .read<FacturaListNotifier>(
+                                        facturaListNotifierProvider,
+                                      );
                                   notifier.loadNextPage();
                                 }
                               : null,
@@ -1876,13 +1993,13 @@ class _RecaudosCarteraFormScreenState
   /// Obtener o crear el controlador para Val. Recibo de una factura
   TextEditingController _getValReciboController(int index) {
     if (!_valReciboControllers.containsKey(index)) {
-      final factura = _facturas[index];
+      final factura = _carteraFacturas[index];
       _valReciboControllers[index] = TextEditingController(
         text: _formatCurrencyInput(factura['valRecibo'] as double),
       );
     } else {
       // Actualizar el texto del controlador si el valor cambió externamente
-      final factura = _facturas[index];
+      final factura = _carteraFacturas[index];
       final currentValue = _formatCurrencyInput(factura['valRecibo'] as double);
       if (_valReciboControllers[index]!.text != currentValue) {
         _valReciboControllers[index]!.text = currentValue;
@@ -1903,18 +2020,19 @@ class _RecaudosCarteraFormScreenState
       return map;
     }).toList();
 
-    // Priorizar _facturas sobre el estado del provider
-    final facturasBase = _facturas.isNotEmpty
-        ? _facturas
+    // Priorizar _carteraFacturas sobre el estado del provider
+    final facturasBase = _carteraFacturas.isNotEmpty
+        ? _carteraFacturas
         : (facturaState.facturas.isNotEmpty
-            ? facturasFromState
-            : <Map<String, dynamic>>[]);
+              ? facturasFromState
+              : <Map<String, dynamic>>[]);
 
     // Filtrar facturas por número de factura si hay texto de búsqueda
     final facturasParaMostrar = _searchFacturaText.isEmpty
         ? facturasBase
         : facturasBase.where((factura) {
-            final facturaNum = (factura['factura'] as String?)?.toLowerCase() ?? '';
+            final facturaNum =
+                (factura['factura'] as String?)?.toLowerCase() ?? '';
             return facturaNum.contains(_searchFacturaText.toLowerCase());
           }).toList();
 
@@ -1931,21 +2049,31 @@ class _RecaudosCarteraFormScreenState
       itemBuilder: (context, index) {
         final factura = facturasParaMostrar[index];
 
+        final isChecked = factura['ok'] as bool;
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          elevation: isChecked ? 4 : 1,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: isChecked ? Colors.green : Colors.transparent,
+              width: isChecked ? 2 : 0,
+            ),
+          ),
+          color: isChecked ? Colors.green[50] : null,
           child: ListTile(
             leading: Checkbox(
-              value: factura['ok'] as bool,
+              value: isChecked,
               onChanged: (value) {
                 setState(() {
                   final isChecked = value ?? false;
-                  // Actualizar en facturasParaMostrar y sincronizar con _facturas
+                  // Actualizar en facturasParaMostrar y sincronizar con _carteraFacturas
                   facturasParaMostrar[index]['ok'] = isChecked;
-                  if (facturasParaMostrar != _facturas &&
-                      index < _facturas.length) {
-                    _facturas[index]['ok'] = isChecked;
-                  } else if (facturasParaMostrar == _facturas) {
-                    _facturas[index]['ok'] = isChecked;
+                  if (facturasParaMostrar != _carteraFacturas &&
+                      index < _carteraFacturas.length) {
+                    _carteraFacturas[index]['ok'] = isChecked;
+                  } else if (facturasParaMostrar == _carteraFacturas) {
+                    _carteraFacturas[index]['ok'] = isChecked;
                   }
 
                   if (isChecked) {
@@ -1965,12 +2093,12 @@ class _RecaudosCarteraFormScreenState
                       final valorAsignar = saldo ?? totalDb ?? 0.0;
                       facturasParaMostrar[index]['valRecibo'] = valorAsignar;
 
-                      // Sincronizar con _facturas
-                      if (facturasParaMostrar != _facturas &&
-                          index < _facturas.length) {
-                        _facturas[index]['valRecibo'] = valorAsignar;
-                      } else if (facturasParaMostrar == _facturas) {
-                        _facturas[index]['valRecibo'] = valorAsignar;
+                      // Sincronizar con _carteraFacturas
+                      if (facturasParaMostrar != _carteraFacturas &&
+                          index < _carteraFacturas.length) {
+                        _carteraFacturas[index]['valRecibo'] = valorAsignar;
+                      } else if (facturasParaMostrar == _carteraFacturas) {
+                        _carteraFacturas[index]['valRecibo'] = valorAsignar;
                       }
 
                       // Actualizar el controlador si existe
@@ -1983,12 +2111,12 @@ class _RecaudosCarteraFormScreenState
                     // Si se desmarca, poner Val. Recibo en 0
                     facturasParaMostrar[index]['valRecibo'] = 0.0;
 
-                    // Sincronizar con _facturas
-                    if (facturasParaMostrar != _facturas &&
-                        index < _facturas.length) {
-                      _facturas[index]['valRecibo'] = 0.0;
-                    } else if (facturasParaMostrar == _facturas) {
-                      _facturas[index]['valRecibo'] = 0.0;
+                    // Sincronizar con _carteraFacturas
+                    if (facturasParaMostrar != _carteraFacturas &&
+                        index < _carteraFacturas.length) {
+                      _carteraFacturas[index]['valRecibo'] = 0.0;
+                    } else if (facturasParaMostrar == _carteraFacturas) {
+                      _carteraFacturas[index]['valRecibo'] = 0.0;
                     }
 
                     // Actualizar el controlador si existe
@@ -2003,7 +2131,10 @@ class _RecaudosCarteraFormScreenState
             ),
             title: Text(
               'Factura ${factura['factura']}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isChecked ? Colors.green[800] : Colors.black87,
+              ),
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2032,7 +2163,7 @@ class _RecaudosCarteraFormScreenState
 
   /// Mostrar modal con detalle de factura
   void _mostrarDetalleFacturaModal(BuildContext context, int index) {
-    final factura = _facturas[index];
+    final factura = _carteraFacturas[index];
     final valReciboController = _getValReciboController(index);
 
     // Helper para formatear valores opcionales
@@ -2219,7 +2350,7 @@ class _RecaudosCarteraFormScreenState
                 ),
               ),
             ),
-            
+
             // Campo fijo para Val. Recibo (fuera del scroll)
             const SizedBox(height: 16),
             const Divider(),
@@ -2244,10 +2375,7 @@ class _RecaudosCarteraFormScreenState
               decoration: InputDecoration(
                 labelText: 'Val. Recibo',
                 labelStyle: const TextStyle(color: Colors.green),
-                prefixIcon: const Icon(
-                  Icons.attach_money,
-                  color: Colors.green,
-                ),
+                prefixIcon: const Icon(Icons.attach_money, color: Colors.green),
                 prefixText: r'$ ',
                 prefixStyle: const TextStyle(
                   color: Colors.green,
@@ -2281,7 +2409,7 @@ class _RecaudosCarteraFormScreenState
                 // Si se ingresa un valor y la factura está desmarcada, marcarla automáticamente
                 if (numValue > 0 && !(factura['ok'] as bool)) {
                   setState(() {
-                    _facturas[index]['ok'] = true;
+                    _carteraFacturas[index]['ok'] = true;
                   });
                 }
 
@@ -2305,7 +2433,7 @@ class _RecaudosCarteraFormScreenState
                 }
 
                 // Actualizar el valor y calcular totales
-                _facturas[index]['valRecibo'] = numValue.toDouble();
+                _carteraFacturas[index]['valRecibo'] = numValue.toDouble();
                 _calcularTotales();
               },
             ),
@@ -2336,35 +2464,6 @@ class _RecaudosCarteraFormScreenState
           style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
         ),
         Text(value, style: const TextStyle(fontSize: 14)),
-      ],
-    ),
-  );
-
-  Widget _buildConceptoRow(
-    String label,
-    String value, {
-    bool isBold = false,
-    Color? color,
-  }) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-            fontSize: 13,
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            fontSize: 13,
-            color: color,
-          ),
-        ),
       ],
     ),
   );
@@ -2403,7 +2502,7 @@ class _RecaudosCarteraFormScreenState
         Checkbox(
           value: ok,
           onChanged: (value) {
-            final index = _facturas.indexWhere(
+            final index = _carteraFacturas.indexWhere(
               (f) =>
                   f['factura'] == factura &&
                   f['sucursal'] == sucursal &&
@@ -2411,7 +2510,7 @@ class _RecaudosCarteraFormScreenState
             );
             if (index != -1) {
               setState(() {
-                _facturas[index]['ok'] = value ?? false;
+                _carteraFacturas[index]['ok'] = value ?? false;
                 _calcularTotales();
               });
             }
@@ -2424,215 +2523,322 @@ class _RecaudosCarteraFormScreenState
   String _formatCurrency(double value) =>
       '\$${value.toStringAsFixed(2).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
 
-  /// Construir sección de descuentos y retenciones
-  Widget _buildDescuentosRetencionesSection() => Card(
-    elevation: 2,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Conceptos de descuentos, retenciones u otros ingresos',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
+  /// Construir sección de descuentos y retenciones (dinámica según el tab)
+  Widget _buildDescuentosRetencionesSection() {
+    final currentTab = _tabController.index;
+    final conceptos = currentTab == 0 ? _carteraConceptos : _anticipoConceptos;
+    final conceptoSeleccionado = currentTab == 0
+        ? _carteraConceptoSeleccionado
+        : null;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Card(
+        elevation: 0,
+        color: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  initialValue: _conceptoSeleccionado,
-                  decoration: InputDecoration(
-                    labelText: 'Concepto',
-                    hintText: 'Seleccione concepto',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+              Row(
+                children: [
+                  Icon(Icons.calculate, color: Colors.grey[600], size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Conceptos de descuentos, retenciones u otros ingresos',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
                     ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    prefixIcon: const Icon(Icons.arrow_drop_down_circle),
-                    errorStyle: const TextStyle(height: 0, fontSize: 0),
                   ),
-                  isExpanded: true,
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'retencion_ica',
-                      child: Text('003 RETENCION DE ICA 7 X 1000'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'retencion_iva',
-                      child: Text('004 RETENCION DE IVA'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'descuento_comercial',
-                      child: Text('005 DESCUENTO COMERCIAL'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      _conceptoSeleccionado = value;
-                    });
-                  },
-                ),
+                ],
               ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                onPressed: _conceptoSeleccionado == null
-                    ? null
-                    : _agregarConcepto,
-                icon: const Icon(Icons.add, size: 20),
-                label: const Text('Agregar'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Lista de conceptos - Adaptada para móvil
-          if (_conceptos.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: const Center(
-                child: Text(
-                  'No hay conceptos agregados',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-            )
-          else
-            ...List.generate(_conceptos.length, (index) {
-              final concepto = _conceptos[index];
-              return Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                child: Column(
-                  children: [
-                    // Header móvil-friendly
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(8),
-                          topRight: Radius.circular(8),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: conceptoSeleccionado,
+                      decoration: InputDecoration(
+                        labelText: 'Concepto',
+                        hintText: 'Seleccione concepto',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey[400]!),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey[400]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: Colors.grey[600]!,
+                            width: 2,
+                          ),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        prefixIcon: Icon(
+                          Icons.arrow_drop_down_circle,
+                          color: Colors.grey[600],
+                        ),
+                        errorStyle: const TextStyle(height: 0, fontSize: 0),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              concepto['descripcion'] as String,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue[900],
-                                fontSize: 12,
+                      isExpanded: true,
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'retencion_ica',
+                          child: Text('003 RETENCION DE ICA 7 X 1000'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'retencion_iva',
+                          child: Text('004 RETENCION DE IVA'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'descuento_comercial',
+                          child: Text('005 DESCUENTO COMERCIAL'),
+                        ),
+                      ],
+                      onChanged: currentTab == 0
+                          ? (value) {
+                              setState(() {
+                                _carteraConceptoSeleccionado = value;
+                              });
+                            }
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: (currentTab == 0 && conceptoSeleccionado != null)
+                        ? _agregarConcepto
+                        : null,
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text(
+                      'Agregar',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[700],
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 1,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Lista de conceptos - Compacta
+              if (conceptos.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'No hay conceptos agregados',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    ),
+                  ),
+                )
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: List.generate(conceptos.length, (index) {
+                    final concepto = conceptos[index];
+                    return Container(
+                      constraints: const BoxConstraints(minWidth: 200),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      concepto['descripcion'] as String,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                        color: Colors.black87,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 4,
+                                    children: [
+                                      Text(
+                                        'Base: ${_formatCurrency(concepto['base'] as double)}',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      Text(
+                                        '%: ${concepto['porcentaje']}',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      Text(
+                                        'Valor: ${_formatCurrency(concepto['valor'] as double)}',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.grey[800],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, size: 20),
-                            color: Colors.red,
-                            onPressed: () {
-                              setState(() {
-                                _conceptos.removeAt(index);
-                                _calcularTotales();
-                              });
-                            },
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, size: 18),
+                              color: Colors.grey[600],
+                              onPressed: () {
+                                setState(() {
+                                  if (currentTab == 0) {
+                                    _carteraConceptos.removeAt(index);
+                                    _calcularTotales();
+                                  } else {
+                                    _anticipoConceptos.removeAt(index);
+                                    _calcularTotalesAnticipos();
+                                  }
+                                });
+                              },
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    // Datos en formato vertical para móvil
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildConceptoRow(
-                            'Base:',
-                            _formatCurrency(concepto['base'] as double),
-                          ),
-                          _buildConceptoRow('%:', '${concepto['porcentaje']}'),
-                          _buildConceptoRow(
-                            'Valor:',
-                            _formatCurrency(concepto['valor'] as double),
-                            isBold: true,
-                            color: Colors.blue[700],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    );
+                  }),
                 ),
-              );
-            }),
-        ],
+            ],
+          ),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   /// Construir sección de observación
   Widget _buildObservacionSection() {
     // Determinar qué controlador usar según el tab activo
     final currentTab = _tabController.index;
-    final controller = currentTab == 0 
-        ? _observacionController 
+    final controller = currentTab == 0
+        ? _observacionController
         : _observacionAnticipoController;
     final hintText = currentTab == 0
         ? 'Ingrese una observación para Recaudos de Cartera (opcional)'
         : 'Ingrese una observación para Anticipos y Recaudos (opcional)';
-    
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Observación',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Card(
+        elevation: 0,
+        color: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.note_alt, color: Colors.grey[600], size: 20),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Observación',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: controller,
-              decoration: InputDecoration(
-                hintText: hintText,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: controller,
+                decoration: InputDecoration(
+                  hintText: hintText,
+                  hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[400]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[400]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[600]!, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                 ),
-                filled: true,
-                fillColor: Colors.white,
-                prefixIcon: const Icon(Icons.note),
+                style: const TextStyle(fontSize: 14, color: Colors.black87),
+                maxLines: 3,
+                textCapitalization: TextCapitalization.sentences,
               ),
-              maxLines: 3,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -2810,7 +3016,8 @@ class _RecaudosCarteraFormScreenState
                             children: [
                               // Fila principal con Neto Recibo
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text(
                                     'Neto Recibo:',
@@ -2832,14 +3039,17 @@ class _RecaudosCarteraFormScreenState
                               const SizedBox(height: 8),
                               // Valores secundarios en letras pequeñas
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
                                           children: [
                                             Text(
                                               'Descuentos:',
@@ -2860,7 +3070,8 @@ class _RecaudosCarteraFormScreenState
                                         ),
                                         const SizedBox(height: 2),
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
                                           children: [
                                             Text(
                                               'Retenciones:',
@@ -2885,10 +3096,12 @@ class _RecaudosCarteraFormScreenState
                                   const SizedBox(width: 16),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
                                       children: [
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
                                           children: [
                                             Text(
                                               'Otros Ingresos:',
@@ -2927,27 +3140,22 @@ class _RecaudosCarteraFormScreenState
   /// Validar que todos los campos requeridos estén llenos según el tab activo
   String? _validarFormulario() {
     final currentTab = _tabController.index;
-    
+
     if (currentTab == 0) {
       // Validaciones para Tab de Recaudos de Cartera
       // Validar cliente
-      if (_clienteController.text.trim().isEmpty ||
-          _clienteSeleccionadoId == null) {
+      if (_carteraClienteController.text.trim().isEmpty ||
+          _carteraClienteSeleccionadoId == null) {
         return 'Debe seleccionar un cliente';
       }
 
       // Validar C.C
-      if (_ccSeleccionado == null) {
+      if (_carteraCcSeleccionado == null) {
         return 'Debe seleccionar un C.C';
       }
 
-      // Validar Consignado en
-      if (_consignadoController.text.trim().isEmpty) {
-        return 'Debe seleccionar "Consignado en"';
-      }
-
       // Validar que al menos una factura esté seleccionada
-      final facturasSeleccionadas = _facturas
+      final facturasSeleccionadas = _carteraFacturas
           .where((f) => f['ok'] == true)
           .toList();
       if (facturasSeleccionadas.isEmpty) {
@@ -2977,14 +3185,12 @@ class _RecaudosCarteraFormScreenState
       }
 
       // Validar que haya al menos un concepto con valor
-      final conceptosConValor = _anticipoConceptos
-          .where((c) {
-            final referencia = c['referencia'] as String?;
-            final valor = c['valor'] as double? ?? 0.0;
-            return (referencia?.isNotEmpty ?? false) && valor > 0;
-          })
-          .toList();
-      
+      final conceptosConValor = _anticipoConceptos.where((c) {
+        final referencia = c['referencia'] as String?;
+        final valor = c['valor'] as double? ?? 0.0;
+        return (referencia?.isNotEmpty ?? false) && valor > 0;
+      }).toList();
+
       if (conceptosConValor.isEmpty) {
         return 'Debe agregar al menos un concepto con valor mayor a cero';
       }
@@ -2994,7 +3200,7 @@ class _RecaudosCarteraFormScreenState
       for (final concepto in conceptosConValor) {
         totalConceptos += concepto['valor'] as double? ?? 0.0;
       }
-      
+
       if (totalConceptos <= 0) {
         return 'El total de conceptos debe ser mayor a cero';
       }
@@ -3003,73 +3209,190 @@ class _RecaudosCarteraFormScreenState
     return null; // Todo está válido
   }
 
+  /// Verificar si el formulario está completo para habilitar el botón
+  bool _isFormularioCompleto() => _validarFormulario() == null;
+
   List<Widget> _buildActionButtons() => [
     Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: () async {
-              // Validar formulario
-              final errorValidacion = _validarFormulario();
-              if (errorValidacion != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(errorValidacion),
-                    backgroundColor: Colors.red,
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
-                return;
-              }
+            onPressed: _isFormularioCompleto()
+                ? () async {
+                    // Validar formulario
+                    final errorValidacion = _validarFormulario();
+                    if (errorValidacion != null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(errorValidacion),
+                          backgroundColor: Colors.red,
+                          duration: const Duration(seconds: 3),
+                        ),
+                      );
+                      return;
+                    }
 
-              if (_formKey.currentState!.validate()) {
-                // Mostrar modal de formas de pago con animación
-                final result = await showGeneralDialog<bool>(
-                  context: context,
-                  barrierDismissible: true,
-                  barrierLabel: 'Formas de Pago',
-                  barrierColor: Colors.black54,
-                  transitionDuration: const Duration(milliseconds: 300),
-                  pageBuilder: (context, animation, secondaryAnimation) =>
-                      FormasPagoModal(netoAPagar: _netoRecibo),
-                  transitionBuilder:
-                      (context, animation, secondaryAnimation, child) =>
-                          SlideTransition(
-                            position:
-                                Tween<Offset>(
-                                  begin: const Offset(0, 0.3),
-                                  end: Offset.zero,
-                                ).animate(
-                                  CurvedAnimation(
-                                    parent: animation,
-                                    curve: Curves.easeOutCubic,
+                    if (_formKey.currentState!.validate()) {
+                      // Mostrar modal de formas de pago con animación
+                      final result = await showGeneralDialog<dynamic>(
+                        context: context,
+                        barrierDismissible: true,
+                        barrierLabel: 'Formas de Pago',
+                        barrierColor: Colors.black54,
+                        transitionDuration: const Duration(milliseconds: 300),
+                        pageBuilder: (context, animation, secondaryAnimation) =>
+                            FormasPagoModal(
+                              netoAPagar: _netoRecibo,
+                              numeroCuenta: _nroCuentaConsignado ?? '',
+                            ),
+                        transitionBuilder:
+                            (context, animation, secondaryAnimation, child) =>
+                                SlideTransition(
+                                  position:
+                                      Tween<Offset>(
+                                        begin: const Offset(0, 0.3),
+                                        end: Offset.zero,
+                                      ).animate(
+                                        CurvedAnimation(
+                                          parent: animation,
+                                          curve: Curves.easeOutCubic,
+                                        ),
+                                      ),
+                                  child: FadeTransition(
+                                    opacity: animation,
+                                    child: child,
                                   ),
                                 ),
-                            child: FadeTransition(
-                              opacity: animation,
-                              child: child,
-                            ),
-                          ),
-                );
+                      );
 
-                if (result ?? false) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Recibo guardado exitosamente'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                    Navigator.pop(context);
+                      // Verificar si se guardó correctamente
+                      bool guardado = false;
+                      List<Map<String, dynamic>> formasPago = [];
+                      String numeroCuentaModal = '';
+
+                      if (result != null) {
+                        if (result is Map<String, dynamic>) {
+                          guardado = result['guardado'] == true;
+                          final formasPagoData = result['formasPago'];
+                          if (formasPagoData is List) {
+                            formasPago = formasPagoData
+                                .map((e) => Map<String, dynamic>.from(e as Map))
+                                .toList();
+                          }
+                          // Obtener el número de cuenta del modal
+                          numeroCuentaModal =
+                              result['numeroCuenta'] as String? ?? '';
+                        } else if (result is bool) {
+                          guardado = result;
+                        }
+                      }
+
+                      if (guardado && mounted) {
+                        // Obtener información de la compañía seleccionada
+                        String nombreCompania = '';
+                        String nitCompania = '';
+                        if (_carteraCcSeleccionado != null) {
+                          final companyState = ref.read(
+                            companyListNotifierProvider,
+                          );
+                          final companies = companyState.whenOrNull(
+                            data: (companies) => companies,
+                          );
+                          if (companies != null && companies.isNotEmpty) {
+                            try {
+                              final company = companies.firstWhere(
+                                (c) => c.id == _carteraCcSeleccionado,
+                              );
+                              nombreCompania = company.razonSocial;
+                              nitCompania = company.nitCompleto;
+                            } catch (e) {
+                              final company = companies.first;
+                              nombreCompania = company.razonSocial;
+                              nitCompania = company.nitCompleto;
+                            }
+                          }
+                        }
+
+                        // Guardar el recibo en memoria
+                        final reciboGuardado = ReciboGuardado(
+                          id: DateTime.now().millisecondsSinceEpoch.toString(),
+                          numeroRecibo: _reciboController.text,
+                          fecha: _fechaController.text,
+                          cliente: _carteraClienteController.text,
+                          nit: _carteraNitController.text,
+                          totalRecibo:
+                              double.tryParse(
+                                _vrReciboController.text
+                                    .replaceAll(',', '')
+                                    .replaceAll('.', ''),
+                              ) ??
+                              0.0,
+                          netoRecibo: _netoRecibo,
+                          formasPago: formasPago,
+                          cuenta: numeroCuentaModal.isNotEmpty
+                              ? numeroCuentaModal
+                              : (_nroCuentaConsignado ?? ''),
+                          fechaCreacion: DateTime.now(),
+                          nombreCompania: nombreCompania,
+                          nitCompania: nitCompania,
+                        );
+
+                        // Simular guardado
+                        await ref
+                            .read<ReciboListNotifier>(
+                              reciboListNotifierProvider.notifier,
+                            )
+                            .agregarRecibo(reciboGuardado);
+
+                        // Cerrar formulario y redirigir al listado ANTES de mostrar el mensaje
+                        // Esto asegura que el loading del modal se cierre primero
+                        if (mounted) {
+                          Navigator.pop(
+                            context,
+                          ); // Cierra el formulario y vuelve al listado
+
+                          // Mostrar notificación push de éxito después de redirigir
+                          Future.delayed(const Duration(milliseconds: 300), () {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Row(
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle,
+                                        color: Colors.white,
+                                      ),
+                                      SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          'Recibo guardado exitosamente',
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  backgroundColor: Colors.green,
+                                  behavior: SnackBarBehavior.floating,
+                                  duration: const Duration(seconds: 3),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              );
+                            }
+                          });
+                        }
+                      }
+                    }
                   }
-                }
-              }
-            },
-            icon: const Icon(Icons.save, size: 20),
-            label: const Text('Guardar'),
+                : null,
+            icon: const Icon(Icons.payment, size: 20),
+            label: const Text('Forma Pago'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: _isFormularioCompleto()
+                  ? Colors.green
+                  : Colors.grey,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
